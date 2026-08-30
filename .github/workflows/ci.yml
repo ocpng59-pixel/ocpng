@@ -1,0 +1,19 @@
+name: OCPNG Release 1 CI
+
+on:
+  push:
+    branches: ['feat/wasdok360-release1', 'main']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run test:run

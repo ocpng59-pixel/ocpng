@@ -7,8 +7,10 @@
     "build": "next build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "typecheck:domain": "tsc -p tsconfig.domain.json",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:domain": "node --experimental-strip-types scripts/domain-smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

@@ -1,0 +1,36 @@
+export type AppEnvironment = 'development' | 'test' | 'uat' | 'production';
+
+export interface PublicEnvironment {
+  appEnv: AppEnvironment;
+  supabaseUrl: string | null;
+  supabaseAnonKey: string | null;
+  strict: boolean;
+}
+
+type EnvironmentSource = Record<string, string | undefined>;
+
+const clean = (value: string | undefined): string | null => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+};
+
+const runtimeEnvironment = (): EnvironmentSource =>
+  (globalThis as { process?: { env?: EnvironmentSource } }).process?.env ?? {};
+
+export function getPublicEnvironment(source: EnvironmentSource = runtimeEnvironment()): PublicEnvironment {
+  const appEnv = (clean(source.NEXT_PUBLIC_APP_ENV) ?? 'development') as AppEnvironment;
+  const supabaseUrl = clean(source.NEXT_PUBLIC_SUPABASE_URL);
+  const supabaseAnonKey = clean(source.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const strict = source.OCPNG_STRICT_ENV === 'true';
+
+  if (strict && (!supabaseUrl || !supabaseAnonKey)) {
+    throw new Error('Supabase public configuration is required when OCPNG_STRICT_ENV=true.');
+  }
+
+  return { appEnv, supabaseUrl, supabaseAnonKey, strict };
+}
+
+export function isSupabaseConfigured(source: EnvironmentSource = runtimeEnvironment()): boolean {
+  const env = getPublicEnvironment({ ...source, OCPNG_STRICT_ENV: 'false' });
+  return Boolean(env.supabaseUrl && env.supabaseAnonKey);
+}

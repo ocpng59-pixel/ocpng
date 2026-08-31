@@ -20,6 +20,7 @@ jobs:
       - run: npm run test:domain
       - run: npm run test:schema
       - run: npm run test:routes
+      - run: npm run verify:static
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build

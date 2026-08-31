@@ -5,7 +5,20 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
   },
-  "include": ["lib/config/**/*.ts", "lib/rbac/**/*.ts", "lib/cases/**/*.ts", "lib/leadership/**/*.ts", "lib/compliance/**/*.ts", "lib/reporting/**/*.ts"]
+  "include": [
+    "lib/config/**/*.ts",
+    "lib/rbac/**/*.ts",
+    "lib/cases/**/*.ts",
+    "lib/leadership/**/*.ts",
+    "lib/compliance/**/*.ts",
+    "lib/reporting/**/*.ts"
+  ]
 }

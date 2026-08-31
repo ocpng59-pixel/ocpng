@@ -10,7 +10,8 @@
     "typecheck:domain": "tsc -p tsconfig.domain.json",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:domain": "node --experimental-strip-types scripts/domain-smoke.mjs"
+    "test:domain": "node --experimental-strip-types scripts/domain-smoke.mjs",
+    "test:schema": "node scripts/schema-smoke.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

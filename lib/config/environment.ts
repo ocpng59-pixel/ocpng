@@ -22,9 +22,13 @@ export function getPublicEnvironment(source: EnvironmentSource = runtimeEnvironm
   const supabaseUrl = clean(source.NEXT_PUBLIC_SUPABASE_URL);
   const supabaseAnonKey = clean(source.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const strict = source.OCPNG_STRICT_ENV === 'true';
+  const deployedEnvironment = appEnv === 'uat' || appEnv === 'production';
+  const requiresSupabase = strict || deployedEnvironment;
 
-  if (strict && (!supabaseUrl || !supabaseAnonKey)) {
-    throw new Error('Supabase public configuration is required when OCPNG_STRICT_ENV=true.');
+  if (requiresSupabase && (!supabaseUrl || !supabaseAnonKey)) {
+    throw new Error(
+      `Supabase public configuration is required for ${appEnv} when strict or deployed environment controls are active.`,
+    );
   }
 
   return { appEnv, supabaseUrl, supabaseAnonKey, strict };

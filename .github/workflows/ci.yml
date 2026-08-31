@@ -4,7 +4,7 @@ on:
   push:
     branches: ['feat/wasdok360-release1', 'main']
   pull_request:
-    branches: ['main']
+    branches: ['feat/wasdok360-release1', 'main']
 
 jobs:
   verify:

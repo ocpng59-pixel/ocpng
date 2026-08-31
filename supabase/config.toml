@@ -1,0 +1,7 @@
+project_id = "wasdok360-ocpng"
+
+[api]
+enabled = true
+
+[db]
+major_version = 17

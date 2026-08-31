@@ -8,10 +8,21 @@ describe('public environment', () => {
     expect(env.supabaseUrl).toBeNull();
     expect(env.supabaseAnonKey).toBeNull();
   });
+
   it('reports Supabase as unconfigured when public credentials are missing', () => {
     expect(isSupabaseConfigured({})).toBe(false);
   });
-  it('requires public Supabase configuration only in strict mode', () => {
+
+  it('requires public Supabase configuration in explicit strict mode', () => {
     expect(() => getPublicEnvironment({ OCPNG_STRICT_ENV: 'true' })).toThrow(/Supabase/i);
+  });
+
+  it.each(['uat', 'production'] as const)('fails closed when %s is missing Supabase configuration', (appEnv) => {
+    expect(() =>
+      getPublicEnvironment({
+        NEXT_PUBLIC_APP_ENV: appEnv,
+        OCPNG_STRICT_ENV: 'false',
+      }),
+    ).toThrow(/Supabase/i);
   });
 });

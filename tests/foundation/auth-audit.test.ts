@@ -81,4 +81,23 @@ describe('authentication audit events', () => {
     expect(migration).toContain('actor_id = auth.uid()');
     expect(migration).toContain('auth.uid() is not null');
   });
+
+  it('wires the login page through the audited sign-in lifecycle', () => {
+    const loginPage = readFileSync('app/login/page.tsx', 'utf8');
+
+    expect(loginPage).toContain('signInCurrentSession');
+    expect(loginPage).toContain('recordAuthenticatedAuthEvent');
+    expect(loginPage).toMatch(/from\(['"]audit_events['"]\)\.insert\(row\)/);
+    expect(loginPage).not.toContain("else window.location.href='/dashboard'");
+  });
+
+  it('wires the sign-out control with the authenticated actor before local logout', () => {
+    const signOutControl = readFileSync('components/sign-out-control.tsx', 'utf8');
+
+    expect(signOutControl).toContain('useAuth');
+    expect(signOutControl).toContain('recordAuthenticatedAuthEvent');
+    expect(signOutControl).toContain('actorId: session?.user.id');
+    expect(signOutControl).toContain('pathname: window.location.pathname');
+    expect(signOutControl).toMatch(/from\(['"]audit_events['"]\)\.insert\(row\)/);
+  });
 });

@@ -86,6 +86,67 @@ describe('session lifecycle', () => {
     expect(events).toEqual(['cleanup:local']);
   });
 
+  it('records intentional sign-out before destroying the local authenticated session', async () => {
+    const events: string[] = [];
+    let auditContext: unknown;
+
+    const result = await signOutCurrentSession({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      pathname: '/dashboard/legal',
+      recordAudit: async (event) => {
+        auditContext = event;
+        events.push(`audit:${event.action}`);
+        return { ok: true };
+      },
+      signOut: async ({ scope }) => {
+        events.push(`signed-out:${scope}`);
+        return { error: null };
+      },
+      redirect: (path) => events.push(`redirect:${path}`),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(events).toEqual([
+      'audit:auth.sign_out',
+      'signed-out:local',
+      'redirect:/login',
+    ]);
+    expect(auditContext).toEqual({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      action: 'auth.sign_out',
+      requestMetadata: {
+        path: '/dashboard/legal',
+        event_source: 'wasdok-web',
+        reason_code: 'user_initiated',
+      },
+    });
+  });
+
+  it('continues local sign-out when auth audit persistence is unavailable', async () => {
+    const events: string[] = [];
+
+    const result = await signOutCurrentSession({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      pathname: '/dashboard',
+      recordAudit: async () => {
+        events.push('audit-attempted');
+        return { ok: false, message: 'audit unavailable' };
+      },
+      signOut: async ({ scope }) => {
+        events.push(`signed-out:${scope}`);
+        return { error: null };
+      },
+      redirect: (path) => events.push(`redirect:${path}`),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(events).toEqual([
+      'audit-attempted',
+      'signed-out:local',
+      'redirect:/login',
+    ]);
+  });
+
   it('requests local-only Supabase sign out for the current browser session', async () => {
     let requestedScope: string | undefined;
 

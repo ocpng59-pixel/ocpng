@@ -26,6 +26,9 @@ type SessionSignInDependencies = {
 };
 
 type SessionSignOutDependencies = {
+  actorId?: string | null;
+  pathname?: string;
+  recordAudit?: (event: AuthAuditEvent) => Promise<AuthAuditResult>;
   signOut: (options: { scope: 'local' }) => Promise<SignOutResult>;
   redirect: (path: string) => void;
 };
@@ -78,9 +81,28 @@ export async function signInCurrentSession(
 }
 
 export async function signOutCurrentSession({
+  actorId,
+  pathname = '/dashboard',
+  recordAudit,
   signOut,
   redirect,
 }: SessionSignOutDependencies): Promise<SessionSignOutResult> {
+  if (actorId && recordAudit) {
+    try {
+      await recordAudit({
+        actorId,
+        action: 'auth.sign_out',
+        requestMetadata: {
+          path: pathname,
+          event_source: 'wasdok-web',
+          reason_code: 'user_initiated',
+        },
+      });
+    } catch {
+      // Audit availability must never trap a user inside an authenticated session.
+    }
+  }
+
   const { error } = await signOut({ scope: 'local' });
 
   if (error) {

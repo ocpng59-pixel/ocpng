@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   recordAuthenticatedAuthEvent,
@@ -68,5 +69,16 @@ describe('authentication audit events', () => {
     });
 
     expect(result).toEqual({ ok: false, message: 'database unavailable' });
+  });
+
+  it('requires authenticated audit inserts to use the current auth uid as actor', () => {
+    const migration = readFileSync(
+      'supabase/migrations/20260902000700_auth_audit_actor_integrity.sql',
+      'utf8',
+    );
+
+    expect(migration).toContain('drop policy if exists audit_events_insert on public.audit_events');
+    expect(migration).toContain('actor_id = auth.uid()');
+    expect(migration).toContain('auth.uid() is not null');
   });
 });

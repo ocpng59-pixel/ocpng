@@ -1,4 +1,4 @@
-import type { ModulePageDefinition } from '@/lib/config/module-pages';
+import type { ModuleActionDefinition, ModulePageDefinition } from '@/lib/config/module-pages';
 import type { PermissionCode, SecurityClassification } from './types';
 
 type ModuleRouteAuthorizationChecks = {
@@ -30,6 +30,25 @@ export async function isPermissionAndClassificationAuthorized(
   if (NO_COMPARTMENT_REQUIRED.has(classification)) return true;
 
   return safeCheck(checks.hasCompartment, classification);
+}
+
+export async function resolveAuthorizedModuleActions(
+  actions: ModuleActionDefinition[],
+  classification: SecurityClassification,
+  checks: ModuleRouteAuthorizationChecks,
+): Promise<ModuleActionDefinition[]> {
+  const decisions = await Promise.all(
+    actions.map(async (action) => ({
+      action,
+      authorized: await isPermissionAndClassificationAuthorized(
+        action.permission,
+        classification,
+        checks,
+      ),
+    })),
+  );
+
+  return decisions.filter(({ authorized }) => authorized).map(({ action }) => action);
 }
 
 export async function isModuleRouteAuthorized(

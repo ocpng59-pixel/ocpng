@@ -64,10 +64,10 @@ export async function resolveAuthorizedNavigation(
     new Set(
       navigation
         .flatMap((section) => section.items.map((item) => item.classification))
-        .filter(
-          (classification): classification is SecurityClassification =>
-            Boolean(classification) && !UNRESTRICTED_CLASSIFICATIONS.has(classification),
-        ),
+        .filter((classification): classification is SecurityClassification => {
+          if (!classification) return false;
+          return !UNRESTRICTED_CLASSIFICATIONS.has(classification);
+        }),
     ),
   );
 

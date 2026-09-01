@@ -5,6 +5,7 @@ import {
   isModuleRouteAuthorized,
   resolveAuthorizedModuleActions,
 } from '@/lib/rbac/module-route-authorization';
+import type { PermissionCode, SecurityClassification } from '@/lib/rbac/types';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export default async function ModuleRoute({ params }: { params: Promise<{ module: string[] }> }) {
@@ -17,13 +18,13 @@ export default async function ModuleRoute({ params }: { params: Promise<{ module
   if (!supabase) notFound();
 
   const checks = {
-    hasPermission: async (permission: Parameters<typeof isModuleRouteAuthorized>[1]['hasPermission'] extends (permission: infer P) => Promise<boolean> ? P : never) => {
+    hasPermission: async (permission: PermissionCode) => {
       const { data, error } = await supabase.rpc('has_permission', {
         permission_code: permission,
       });
       return !error && data === true;
     },
-    hasCompartment: async (classification: Parameters<typeof isModuleRouteAuthorized>[1]['hasCompartment'] extends (classification: infer C) => Promise<boolean> ? C : never) => {
+    hasCompartment: async (classification: SecurityClassification) => {
       const { data, error } = await supabase.rpc('has_compartment', {
         classification_code: classification,
       });

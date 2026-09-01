@@ -1,7 +1,11 @@
 import { notFound } from 'next/navigation';
 import { ModuleLanding } from '@/components/module-landing';
 import { MODULE_PAGES } from '@/lib/config/module-pages';
-import { isModuleRouteAuthorized } from '@/lib/rbac/module-route-authorization';
+import {
+  isModuleRouteAuthorized,
+  resolveAuthorizedModuleActions,
+} from '@/lib/rbac/module-route-authorization';
+import type { PermissionCode, SecurityClassification } from '@/lib/rbac/types';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export default async function ModuleRoute({ params }: { params: Promise<{ module: string[] }> }) {
@@ -13,22 +17,29 @@ export default async function ModuleRoute({ params }: { params: Promise<{ module
   const supabase = await createServerSupabaseClient();
   if (!supabase) notFound();
 
-  const authorized = await isModuleRouteAuthorized(page, {
-    hasPermission: async (permission) => {
+  const checks = {
+    hasPermission: async (permission: PermissionCode) => {
       const { data, error } = await supabase.rpc('has_permission', {
         permission_code: permission,
       });
       return !error && data === true;
     },
-    hasCompartment: async (classification) => {
+    hasCompartment: async (classification: SecurityClassification) => {
       const { data, error } = await supabase.rpc('has_compartment', {
         classification_code: classification,
       });
       return !error && data === true;
     },
-  });
+  };
 
+  const authorized = await isModuleRouteAuthorized(page, checks);
   if (!authorized) notFound();
 
-  return <ModuleLanding page={page} />;
+  const authorizedActions = await resolveAuthorizedModuleActions(
+    page.actions,
+    page.classification,
+    checks,
+  );
+
+  return <ModuleLanding page={{ ...page, actions: authorizedActions }} />;
 }

@@ -16,6 +16,12 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run test:run
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase db reset
+      - run: npm run test:rls
       - run: npm run typecheck:domain
       - run: npm run test:domain
       - run: npm run test:schema

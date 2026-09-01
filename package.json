@@ -13,6 +13,7 @@
     "test:domain": "node --experimental-strip-types scripts/domain-smoke.mjs",
     "test:schema": "node scripts/schema-smoke.mjs",
     "test:routes": "node scripts/routes-smoke.mjs",
+    "test:rls": "supabase test db",
     "verify:static": "node scripts/static-security.mjs"
   },
   "dependencies": {

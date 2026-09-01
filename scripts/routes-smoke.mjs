@@ -36,6 +36,8 @@ assert.match(dashboardPage, /isPermissionAndClassificationAuthorized/);
 assert.match(dashboardPage, /createServerSupabaseClient/);
 assert.match(dashboardPage, /has_permission/);
 assert.match(dashboardPage, /has_compartment/);
+assert.match(dashboardPage, /canViewDashboard/);
+assert.match(dashboardPage, /if \(!canViewDashboard\) notFound\(\)/);
 assert.match(dashboardPage, /canViewLeadership/);
 assert.match(dashboardPage, /canViewCompliance/);
 assert.match(dashboardPage, /canScreenComplaints/);

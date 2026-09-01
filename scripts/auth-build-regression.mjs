@@ -55,13 +55,14 @@ async function smokeRequests() {
       await delay(200);
     }
     assert.ok(ready, 'Production server readiness timed out');
-    for (const route of ['/login', '/forgot-password', '/set-password']) {
+    const publicRoutes = ['/login', '/forgot-password', '/set-password', '/complaints/intake'];
+    for (const route of publicRoutes) {
       const response = await fetch(`${origin}${route}`, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
       assert.equal(response.status, 200, `Public route unavailable: ${route}`);
       assertNoPrivilegedCredentials(await response.text(), route, secrets);
     }
     let count = 0;
-    for (const route of ['/dashboard', '/dashboard/complaints', '/dashboard/investigations/DEMO-62', '/dashboard/annual-statements', '/dashboard/legal']) {
+    for (const route of ['/dashboard', '/dashboard/complaints', '/dashboard/complaints/new', '/dashboard/investigations/DEMO-62', '/dashboard/annual-statements', '/dashboard/legal']) {
       for (const headers of [{}, { RSC: '1' }, { Cookie: 'sb-127-auth-token=DEMO-invalid-session' }]) {
         for (const method of ['GET', 'HEAD']) {
           const response = await fetch(`${origin}${route}?private=DEMO-sensitive`, {
@@ -76,7 +77,7 @@ async function smokeRequests() {
         }
       }
     }
-    console.log(`WASDOK-62 production HTTP boundary: PASS (${count} protected requests, 3 public routes)`);
+    console.log(`WASDOK production HTTP boundary: PASS (${count} protected requests, ${publicRoutes.length} public routes)`);
   } finally {
     if (server.exitCode === null) {
       server.kill('SIGTERM');

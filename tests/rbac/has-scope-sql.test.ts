@@ -8,15 +8,15 @@ const migrationPath = resolve(
 );
 
 describe('WASDOK-27 has_scope SQL regression', () => {
-  it('uses an unambiguous requested-scope parameter and compares the stored scope to that parameter', () => {
+  it('keeps the existing signature and compares the stored scope to positional argument $1', () => {
     const sql = readFileSync(migrationPath, 'utf8');
 
     expect(sql).toMatch(
-      /create\s+or\s+replace\s+function\s+public\.has_scope\s*\(requested_scope\s+text\)/i,
+      /create\s+or\s+replace\s+function\s+public\.has_scope\s*\(scope_code\s+text\)/i,
     );
-    expect(sql).toMatch(/ds\.scope_code\s*=\s*requested_scope/i);
+    expect(sql).toMatch(/ds\.scope_code\s*=\s*\$1\b/i);
     expect(sql).toMatch(/ds\.scope_code\s*=\s*'\*'/i);
-    expect(sql).toMatch(/requested_scope\s+is\s+null/i);
+    expect(sql).toMatch(/\$1\s+is\s+null/i);
   });
 
   it('does not reintroduce the ambiguous ds.scope_code = scope_code comparison', () => {

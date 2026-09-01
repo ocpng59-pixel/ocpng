@@ -2,10 +2,151 @@ import { describe, expect, it } from 'vitest';
 import {
   hasValidServerSession,
   shouldReturnToLoginAfterAuthEvent,
+  signInCurrentSession,
   signOutCurrentSession,
 } from '@/lib/auth/session-lifecycle';
 
 describe('session lifecycle', () => {
+  it('audits a successful password sign-in before entering the dashboard', async () => {
+    const events: string[] = [];
+    let auditContext: unknown;
+
+    const result = await signInCurrentSession(
+      {
+        signIn: async ({ email, password }) => {
+          expect(email).toBe('officer@ombudsman.gov.pg');
+          expect(password).toBe('temporary-login-secret');
+          events.push('signed-in');
+          return {
+            data: { user: { id: '00000000-0000-0000-0000-000000000061' } },
+            error: null,
+          };
+        },
+        recordAudit: async (event) => {
+          auditContext = event;
+          events.push(`audit:${event.action}`);
+          return { ok: true };
+        },
+        signOut: async () => {
+          events.push('cleanup-sign-out');
+          return { error: null };
+        },
+        redirect: (path) => events.push(`redirect:${path}`),
+      },
+      {
+        email: 'officer@ombudsman.gov.pg',
+        password: 'temporary-login-secret',
+      },
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(events).toEqual([
+      'signed-in',
+      'audit:auth.sign_in_succeeded',
+      'redirect:/dashboard',
+    ]);
+    expect(auditContext).toEqual({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      action: 'auth.sign_in_succeeded',
+      requestMetadata: {
+        path: '/login',
+        auth_method: 'password',
+        event_source: 'wasdok-web',
+      },
+    });
+    expect(JSON.stringify(auditContext)).not.toContain('temporary-login-secret');
+  });
+
+  it('fails closed when authenticated sign-in cannot be recorded in the WASDOK audit trail', async () => {
+    const events: string[] = [];
+
+    const result = await signInCurrentSession(
+      {
+        signIn: async () => ({
+          data: { user: { id: '00000000-0000-0000-0000-000000000061' } },
+          error: null,
+        }),
+        recordAudit: async () => ({ ok: false, message: 'audit unavailable' }),
+        signOut: async ({ scope }) => {
+          events.push(`cleanup:${scope}`);
+          return { error: null };
+        },
+        redirect: (path) => events.push(`redirect:${path}`),
+      },
+      {
+        email: 'officer@ombudsman.gov.pg',
+        password: 'temporary-login-secret',
+      },
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      message: 'Unable to establish an audited session',
+    });
+    expect(events).toEqual(['cleanup:local']);
+  });
+
+  it('records intentional sign-out before destroying the local authenticated session', async () => {
+    const events: string[] = [];
+    let auditContext: unknown;
+
+    const result = await signOutCurrentSession({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      pathname: '/dashboard/legal',
+      recordAudit: async (event) => {
+        auditContext = event;
+        events.push(`audit:${event.action}`);
+        return { ok: true };
+      },
+      signOut: async ({ scope }) => {
+        events.push(`signed-out:${scope}`);
+        return { error: null };
+      },
+      redirect: (path) => events.push(`redirect:${path}`),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(events).toEqual([
+      'audit:auth.sign_out',
+      'signed-out:local',
+      'redirect:/login',
+    ]);
+    expect(auditContext).toEqual({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      action: 'auth.sign_out',
+      requestMetadata: {
+        path: '/dashboard/legal',
+        event_source: 'wasdok-web',
+        reason_code: 'user_initiated',
+      },
+    });
+  });
+
+  it('continues local sign-out when auth audit persistence is unavailable', async () => {
+    const events: string[] = [];
+
+    const result = await signOutCurrentSession({
+      actorId: '00000000-0000-0000-0000-000000000061',
+      pathname: '/dashboard',
+      recordAudit: async () => {
+        events.push('audit-attempted');
+        return { ok: false, message: 'audit unavailable' };
+      },
+      signOut: async ({ scope }) => {
+        events.push(`signed-out:${scope}`);
+        return { error: null };
+      },
+      redirect: (path) => events.push(`redirect:${path}`),
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(events).toEqual([
+      'audit-attempted',
+      'signed-out:local',
+      'redirect:/login',
+    ]);
+  });
+
   it('requests local-only Supabase sign out for the current browser session', async () => {
     let requestedScope: string | undefined;
 

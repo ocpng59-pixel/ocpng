@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation';
 import { MetricCard } from '@/components/metric-card';
 import { WorkQueue } from '@/components/work-queue';
 import { isPermissionAndClassificationAuthorized } from '@/lib/rbac/module-route-authorization';
@@ -35,6 +36,13 @@ export default async function DashboardPage() {
       return !error && data === true;
     },
   };
+
+  const canViewDashboard = await isPermissionAndClassificationAuthorized(
+    'dashboard.view',
+    'INTERNAL',
+    checks,
+  );
+  if (!canViewDashboard) notFound();
 
   const [
     canViewComplaints,

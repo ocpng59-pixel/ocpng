@@ -50,3 +50,32 @@ button, input { font: inherit; }
 .oc-table th,.oc-table td { text-align:left; padding:10px; border-bottom:1px solid #e4e9ef; }
 @media (max-width: 1050px) { .oc-grid { grid-template-columns:repeat(2,1fr); } .oc-shell { grid-template-columns:230px 1fr; } }
 @media (max-width: 760px) { .oc-shell { display:block; } .oc-sidebar { position:relative; max-height:none; } .oc-grid,.oc-columns { grid-template-columns:1fr; } .oc-content { padding:18px; } .oc-topbar { padding:13px 18px; gap:12px; align-items:flex-start; } .oc-topbar-actions { align-items:flex-end; flex-direction:column; } }
+
+.oc-intake-public { max-width: 960px; margin: 0 auto; padding: 28px 24px 48px; }
+.oc-intake { max-width: 880px; font-size: 1rem; line-height: 1.5; }
+.oc-intake-brand { font-weight: 700; color: #29415e; margin-bottom: 32px; }
+.oc-intake .oc-intake-eyebrow { color: #455468; font-size: .875rem; margin-bottom: 8px; }
+.oc-intake .oc-notice p { margin-bottom: 0; }
+.oc-intake-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.oc-intake-section { margin-bottom: 20px; padding: 24px; }
+.oc-intake-section h2, .oc-intake-summary h2 { font-size: 1.25rem; margin: 0 0 12px; }
+.oc-intake-section > p { color: #455468; margin: 0 0 22px; }
+.oc-intake-field { margin-top: 20px; min-width: 0; }
+.oc-intake-field label { display: block; font-weight: 700; }
+.oc-intake-field label span { font-weight: 400; color: #455468; font-size: .875rem; }
+.oc-intake-hint { color: #455468; font-size: .875rem; margin: 4px 0 8px; }
+.oc-intake input, .oc-intake textarea { display: block; width: 100%; font: inherit; background: white; color: #172033; border: 1px solid #8190a3; border-radius: 6px; padding: 11px 12px; }
+.oc-intake textarea { resize: vertical; min-height: 90px; }
+.oc-intake [aria-invalid="true"] { border: 2px solid #a51d32; }
+.oc-intake :is(input, textarea, button, a):focus-visible, .oc-intake-summary:focus { outline: 3px solid #2768ad; outline-offset: 3px; }
+.oc-intake-error { color: #a51d32; font-weight: 700; margin: 8px 0 0; font-size: .875rem; }
+.oc-intake-summary { border: 2px solid #a51d32; border-radius: 8px; padding: 20px; margin-bottom: 24px; background: #fff7f8; }
+.oc-intake-summary a, .oc-intake-footer a { text-decoration: underline; text-underline-offset: 3px; }
+.oc-intake-summary li { margin: 8px 0; }
+.oc-intake-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.oc-intake-submit { display: flex; gap: 20px; align-items: center; margin: 24px 0; }
+.oc-intake-submit p { font-size: .875rem; color: #455468; margin: 0; }
+.oc-intake-submit button { flex-shrink: 0; min-height: 44px; font: inherit; }
+.oc-intake-success { background: #edf8f2; border-color: #8dbca1; color: #175537; }
+.oc-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 640px) { .oc-intake-public { padding: 20px 16px; } .oc-intake-section { padding: 18px; } .oc-intake-grid { grid-template-columns: 1fr; gap: 0; } .oc-intake-submit { align-items: flex-start; flex-direction: column; } }

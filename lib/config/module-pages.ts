@@ -1,15 +1,24 @@
 import type { PermissionCode, SecurityClassification } from '@/lib/rbac/types';
 
+export interface ModuleActionDefinition {
+  label: string;
+  permission: PermissionCode;
+}
+
 export interface ModulePageDefinition {
   title: string;
   description: string;
   permission: PermissionCode;
   classification: SecurityClassification;
-  actions: string[];
+  actions: ModuleActionDefinition[];
   stages: string[];
 }
 
-export const MODULE_PAGES: Record<string, ModulePageDefinition> = {
+type RawModulePageDefinition = Omit<ModulePageDefinition, 'actions'> & {
+  actions: string[];
+};
+
+const RAW_MODULE_PAGES: Record<string, RawModulePageDefinition> = {
   '/dashboard/complaints': { title: 'Complaint Register', description: 'Register, triage and track complaints received by the Commission.', permission: 'complaints.view', classification: 'CONFIDENTIAL', actions: ['Register complaint', 'Open screening queue', 'Review referrals'], stages: ['Receipt & registration', 'Intake screening', 'Jurisdiction assessment', 'Decision / referral'] },
   '/dashboard/complaints/new': { title: 'New Complaint', description: 'Capture a new complaint with source, channel, subject body and initial confidentiality controls.', permission: 'complaints.create', classification: 'CONFIDENTIAL', actions: ['Create complaint', 'Attach intake documents'], stages: ['Receipt', 'Identity & contact', 'Issue summary', 'Initial classification'] },
   '/dashboard/complaints/referrals': { title: 'Complaint Referrals', description: 'Track matters referred to other competent authorities and evidence of referral.', permission: 'complaints.view', classification: 'CONFIDENTIAL', actions: ['Record referral', 'Review acknowledgement'], stages: ['Referral decision', 'Dispatch', 'Agency acknowledgement', 'Closure'] },
@@ -49,6 +58,33 @@ export const MODULE_PAGES: Record<string, ModulePageDefinition> = {
   '/dashboard/audit-log': { title: 'Audit Logs', description: 'Review immutable security, access, export, role and decision events.', permission: 'audit.view', classification: 'RESTRICTED', actions: ['Search audit log', 'Review privileged event'], stages: ['Capture', 'Protect', 'Review', 'Export with authority'] },
   '/dashboard/settings': { title: 'System Settings', description: 'Manage approved master data and system configuration.', permission: 'admin.manage_settings', classification: 'INTERNAL', actions: ['Review settings', 'Manage master data'], stages: ['Draft change', 'Approve', 'Apply', 'Audit'] },
 };
+
+const ACTION_PERMISSION_OVERRIDES: Record<string, PermissionCode> = {
+  '/dashboard/complaints:Register complaint': 'complaints.create',
+  '/dashboard/complaints:Open screening queue': 'complaints.screen',
+  '/dashboard/complaints/referrals:Record referral': 'complaints.screen',
+  '/dashboard/complaints/administrative:Assign screening': 'complaints.screen',
+  '/dashboard/complaints/human-rights:Assess jurisdiction': 'complaints.screen',
+  '/dashboard/complaints/police:Assign matter': 'complaints.screen',
+  '/dashboard/investigations:Start investigation plan': 'investigations.manage',
+  '/dashboard/annual-statements:Open statement period': 'annual_statements.manage',
+  '/dashboard/oversight:Create monitoring activity': 'oversight.manage',
+  '/dashboard/legal:Open legal matter': 'legal.manage',
+  '/dashboard/intelligence:Create draft report': 'intelligence.manage',
+};
+
+export const MODULE_PAGES: Record<string, ModulePageDefinition> = Object.fromEntries(
+  Object.entries(RAW_MODULE_PAGES).map(([pathname, page]) => [
+    pathname,
+    {
+      ...page,
+      actions: page.actions.map((label) => ({
+        label,
+        permission: ACTION_PERMISSION_OVERRIDES[`${pathname}:${label}`] ?? page.permission,
+      })),
+    },
+  ]),
+) as Record<string, ModulePageDefinition>;
 
 export function getModulePage(pathname: string): ModulePageDefinition {
   const page = MODULE_PAGES[pathname];

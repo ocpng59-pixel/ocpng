@@ -42,7 +42,14 @@ export async function updateSupabaseSession(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.search = '';
-    return NextResponse.redirect(loginUrl);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    // Preserve Auth's deletion/rotation instructions when replacing its response.
+    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    for (const header of ['cache-control', 'expires', 'pragma']) {
+      const value = response.headers.get(header);
+      if (value) redirectResponse.headers.set(header, value);
+    }
+    return redirectResponse;
   }
 
   return response;

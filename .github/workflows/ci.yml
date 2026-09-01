@@ -16,6 +16,8 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run test:run
+      - name: Authentication security regressions (WASDOK-62)
+        run: npm run test:auth-security
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -29,4 +31,5 @@ jobs:
       - run: npm run verify:static
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm run build
+      - name: Production build, browser credential scan and HTTP authentication boundary (WASDOK-62)
+        run: npm run test:auth-build

@@ -1,15 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   checkComplaintIntakeForm, INTAKE_FIELDS,
   type IntakeCheckResult, type IntakeField,
 } from '@/lib/complaints/intake-schema';
 
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 export function ComplaintIntakeForm({ mode, checkAction }: {
   mode: 'public' | 'assisted';
   checkAction: (form: FormData) => Promise<IntakeCheckResult>;
 }) {
+  // Server-rendered controls stay inert until the client validation handler exists.
+  const hydrated = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
   const [result, setResult] = useState<IntakeCheckResult | null>(null);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
@@ -21,7 +27,7 @@ export function ComplaintIntakeForm({ mode, checkAction }: {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending.current) return;
+    if (!hydrated || pending.current) return;
     const form = new FormData(event.currentTarget);
     const localResult = checkComplaintIntakeForm(form);
     if (localResult.status !== 'valid') {
@@ -79,7 +85,7 @@ export function ComplaintIntakeForm({ mode, checkAction }: {
         <p>This form checks your details only. It does not submit or save a complaint, and no receipt is issued.
           For a real complaint, use the Commission’s existing intake channels.</p>
       </div>
-      <form onSubmit={submit} onInput={() => { if (!pending.current) setResult(null); }} noValidate autoComplete="off" aria-describedby="intake-preview-notice">
+      <form method="post" onSubmit={submit} onInput={() => { if (!pending.current) setResult(null); }} noValidate autoComplete="off" aria-describedby="intake-preview-notice">
         {result && result.status !== 'valid' ? (
           <div className="oc-intake-summary" role="alert" tabIndex={-1} ref={summary}>
             <h2>Check the details</h2>
@@ -91,7 +97,7 @@ export function ComplaintIntakeForm({ mode, checkAction }: {
             ) : null}
           </div>
         ) : null}
-        <fieldset className="oc-intake-fields" disabled={busy}>
+        <fieldset className="oc-intake-fields" disabled={!hydrated || busy}>
           <legend className="oc-visually-hidden">Complaint details</legend>
           <section className="oc-card oc-intake-section" aria-labelledby="intake-contact-title">
             <h2 id="intake-contact-title">1. Complainant and contact details</h2>
@@ -112,7 +118,7 @@ export function ComplaintIntakeForm({ mode, checkAction }: {
           </section>
         </fieldset>
         <div className="oc-intake-submit">
-          <button className="oc-button" type="submit" disabled={busy}>{busy ? 'Checking details…' : 'Check details'}</button>
+          <button className="oc-button" type="submit" disabled={!hydrated || busy}>{busy ? 'Checking details…' : 'Check details'}</button>
           <p>Details are not saved. Leaving or refreshing this page will clear your entries.</p>
         </div>
         <div role="status" aria-live="polite">

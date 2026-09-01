@@ -27,6 +27,7 @@ At least one of email, phone or postal address is required. All supplied fields 
 - The assisted page and its directly callable server action independently verify claims and require `complaints.create` plus the CONFIDENTIAL compartment. They fail closed on missing sessions, configuration or permission-service errors. There is no administrator bypass.
 - This is a blank form with no record reads/writes. Organisational scope, case assignment, channel and actor attribution must be enforced at trusted persistence in WASDOK-64/65; the form does not accept these values.
 - Next server actions provide the request boundary. No browser local/session storage, query-string values, uploaded evidence or complaint-value logging are added.
+- Server-rendered controls remain disabled until hydration installs the client handler. The native form method is POST, preventing a no-JavaScript fallback from serializing complaint values into the page URL.
 - While checking, editing and repeat requests are disabled. An edit clears the previous validation result. Failures retain the current in-memory form values and present a safe retry/access message. An error summary receives focus and links to labelled fields with associated messages.
 - The public preview is marked noindex. It is not advertised as an operational complaint-submission channel.
 

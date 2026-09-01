@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
+import { renderToStaticMarkup, renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComplaintIntakeForm } from '@/components/complaints/intake-form';
 import { checkComplaintIntakeForm, type IntakeCheckResult } from '@/lib/complaints/intake-schema';
@@ -33,6 +34,38 @@ async function submit() {
 }
 
 describe('complaint intake interaction', () => {
+  it('prevents native GET submission before JavaScript hydrates the form', () => {
+    const markup = renderToStaticMarkup(createElement(ComplaintIntakeForm, {
+      mode: 'public', checkAction: async (): Promise<IntakeCheckResult> => ({ status: 'valid', fieldErrors: {} }),
+    }));
+    const template = document.createElement('template');
+    template.innerHTML = markup;
+    const form = template.content.querySelector('form')!;
+    // Native browser fallback must never put complaint values in the URL.
+    expect(form.method).toBe('post');
+    expect(form.querySelector('fieldset')?.disabled).toBe(true);
+    expect(form.querySelector('button')?.disabled).toBe(true);
+  });
+
+  it('enables checking after hydration installs the client handler', async () => {
+    const element = createElement(ComplaintIntakeForm, {
+      mode: 'public', checkAction: async (): Promise<IntakeCheckResult> => ({ status: 'valid', fieldErrors: {} }),
+    });
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(element);
+    document.body.append(container);
+    let hydratedRoot!: Root;
+    try {
+      expect(container.querySelector('button')?.disabled).toBe(true);
+      await act(() => { hydratedRoot = hydrateRoot(container, element); });
+      expect(container.querySelector('button')?.disabled).toBe(false);
+      expect(container.querySelector('fieldset')?.disabled).toBe(false);
+    } finally {
+      await act(() => hydratedRoot?.unmount());
+      container.remove();
+    }
+  });
+
   it.each(['public', 'assisted'] as const)('shows labelled fields and the DEMO limit in %s mode', async (mode) => {
     await render(undefined, mode);
     expect(host.textContent).toMatch(/DEMO/);

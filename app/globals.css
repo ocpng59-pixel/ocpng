@@ -16,6 +16,10 @@ button, input { font: inherit; }
 .oc-main { min-width: 0; }
 .oc-topbar { background:#fff; padding: 15px 28px; border-bottom:1px solid #dce2ea; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:10; }
 .oc-topbar small { color:#64748b; }
+.oc-topbar-actions { display:flex; align-items:center; gap:12px; }
+.oc-session-control { display:flex; align-items:center; gap:8px; }
+.oc-button-compact { padding:7px 10px; font-size:.8rem; }
+.oc-session-error { color:#9f1239; font-size:.75rem; max-width:240px; }
 .oc-content { padding: 28px; max-width: 1480px; margin:0 auto; }
 .oc-page-head { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-bottom:22px; }
 .oc-page-head h1 { margin:0 0 7px; font-size:1.7rem; }
@@ -45,4 +49,4 @@ button, input { font: inherit; }
 .oc-table { width:100%; border-collapse:collapse; font-size:.86rem; }
 .oc-table th,.oc-table td { text-align:left; padding:10px; border-bottom:1px solid #e4e9ef; }
 @media (max-width: 1050px) { .oc-grid { grid-template-columns:repeat(2,1fr); } .oc-shell { grid-template-columns:230px 1fr; } }
-@media (max-width: 760px) { .oc-shell { display:block; } .oc-sidebar { position:relative; max-height:none; } .oc-grid,.oc-columns { grid-template-columns:1fr; } .oc-content { padding:18px; } .oc-topbar { padding:13px 18px; } }
+@media (max-width: 760px) { .oc-shell { display:block; } .oc-sidebar { position:relative; max-height:none; } .oc-grid,.oc-columns { grid-template-columns:1fr; } .oc-content { padding:18px; } .oc-topbar { padding:13px 18px; gap:12px; align-items:flex-start; } .oc-topbar-actions { align-items:flex-end; flex-direction:column; } }

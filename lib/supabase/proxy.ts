@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getPublicEnvironment } from '@/lib/config/environment';
 import { shouldRedirectUnauthenticated } from '@/lib/auth/server-route-policy';
+import { hasValidServerSession } from '@/lib/auth/session-lifecycle';
 
 export async function updateSupabaseSession(request: NextRequest) {
   const env = getPublicEnvironment({
@@ -35,8 +36,7 @@ export async function updateSupabaseSession(request: NextRequest) {
     },
   });
 
-  const { data, error } = await supabase.auth.getClaims();
-  const isAuthenticated = !error && Boolean(data?.claims);
+  const isAuthenticated = await hasValidServerSession(() => supabase.auth.getClaims());
 
   if (shouldRedirectUnauthenticated(request.nextUrl.pathname, isAuthenticated)) {
     const loginUrl = request.nextUrl.clone();

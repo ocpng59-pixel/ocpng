@@ -53,10 +53,10 @@ select has_column('public','complaint_intakes','government_body','Government bod
 select has_column('public','complaint_intakes','respondent','Respondent is persisted');
 select has_column('public','complaint_intakes','subject','Subject is persisted');
 select has_column('public','complaint_intakes','allegation','Allegation is persisted');
-select has_function('public','persist_complaint_intake_submission',array['text','text','uuid','text','text','text','text','text','text','text','text','text'],'Trusted persistence RPC exists');
-select ok(not coalesce(has_function_privilege('anon',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)'),'EXECUTE'),false),'Anonymous role cannot execute persistence RPC');
-select ok(not coalesce(has_function_privilege('authenticated',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)'),'EXECUTE'),false),'Authenticated browser cannot execute persistence RPC');
-select ok(coalesce(has_function_privilege('service_role',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)'),'EXECUTE'),false),'Trusted service role can execute persistence RPC');
+select has_function('public','persist_complaint_intake_submission',array['text','text','uuid','text','text','text','text','text','text','text','text','text','text','boolean','text','text'],'Trusted privacy-aware persistence RPC exists');
+select ok(not coalesce(has_function_privilege('anon',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text,text,boolean,text,text)'),'EXECUTE'),false),'Anonymous role cannot execute persistence RPC');
+select ok(not coalesce(has_function_privilege('authenticated',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text,text,boolean,text,text)'),'EXECUTE'),false),'Authenticated browser cannot execute persistence RPC');
+select ok(coalesce(has_function_privilege('service_role',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text,text,boolean,text,text)'),'EXECUTE'),false),'Trusted service role can execute persistence RPC');
 
 set local role service_role;
 
@@ -65,7 +65,8 @@ select lives_ok(
     'public_web','OCPNG',null,
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     'DEMO Public Complainant','demo-public@test.invalid','+675 7000 0001','PO Box 65, DEMO',
-    'DEMO Government Body','DEMO Respondent','DEMO Public Subject','DEMO Secret Allegation WASDOK65'
+    'DEMO Government Body','DEMO Respondent','DEMO Public Subject','DEMO Secret Allegation WASDOK65',
+    'OCPNG-COMPLAINT-PRIVACY-v1',true,'public_checkbox',null
   )$$,
   'Valid public submission persists through trusted RPC'
 );
@@ -86,7 +87,8 @@ select lives_ok(
     'public_web','OCPNG',null,
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     'DEMO Public Complainant','demo-public@test.invalid','+675 7000 0001','PO Box 65, DEMO',
-    'DEMO Government Body','DEMO Respondent','DEMO Public Subject','DEMO Secret Allegation WASDOK65'
+    'DEMO Government Body','DEMO Respondent','DEMO Public Subject','DEMO Secret Allegation WASDOK65',
+    'OCPNG-COMPLAINT-PRIVACY-v1',true,'public_checkbox',null
   )$$,
   'Exact retry with same idempotency hash succeeds'
 );
@@ -97,7 +99,8 @@ select throws_ok(
     'public_web','OCPNG',null,
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     'DEMO Public Complainant','demo-public@test.invalid','+675 7000 0001','PO Box 65, DEMO',
-    'DEMO Government Body','DEMO Respondent','DEMO Public Subject','CHANGED ALLEGATION'
+    'DEMO Government Body','DEMO Respondent','DEMO Public Subject','CHANGED ALLEGATION',
+    'OCPNG-COMPLAINT-PRIVACY-v1',true,'public_checkbox',null
   )$$,
   '22023',null,'Same idempotency hash with changed payload is rejected'
 );
@@ -115,7 +118,8 @@ select throws_ok(
   $$select * from public.persist_complaint_intake_submission(
     'public_web','OCPNG',null,'not-a-sha256-hash',
     'DEMO Public Complainant','demo-public@test.invalid','','',
-    'DEMO Government Body','','DEMO Public Subject','DEMO Allegation'
+    'DEMO Government Body','','DEMO Public Subject','DEMO Allegation',
+    'OCPNG-COMPLAINT-PRIVACY-v1',true,'public_checkbox',null
   )$$,
   '22023',null,'Malformed idempotency hash is rejected'
 );
@@ -125,7 +129,8 @@ select lives_ok(
     'assisted_internal','UAT-COMPLAINTS','65000000-0000-4000-8000-000000000001',
     'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     'DEMO Assisted Complainant','demo-assisted@test.invalid','','',
-    'DEMO Government Body','DEMO Officer','DEMO Assisted Subject','DEMO Assisted Allegation'
+    'DEMO Government Body','DEMO Officer','DEMO Assisted Subject','DEMO Assisted Allegation',
+    'OCPNG-COMPLAINT-PRIVACY-v1',true,'assisted_acknowledgement',null
   )$$,
   'Authorized assisted submission persists through trusted RPC'
 );

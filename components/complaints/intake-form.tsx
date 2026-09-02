@@ -118,6 +118,12 @@ export function ComplaintIntakeForm({ mode, checkAction, submitAction }: {
     idempotencyKey.current = null;
   }
 
+  function formInput(event: React.FormEvent<HTMLFormElement>) {
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    if (target.name.startsWith('privacy')) return;
+    complaintChanged();
+  }
+
   function field(name: IntakeField, hint: string, multiline = false) {
     const definition = INTAKE_FIELDS[name];
     const id = `intake-${name}`;
@@ -161,7 +167,7 @@ export function ComplaintIntakeForm({ mode, checkAction, submitAction }: {
         ref={formRef}
         method="post"
         onSubmit={checkDetails}
-        onInput={complaintChanged}
+        onInput={formInput}
         noValidate
         autoComplete="off"
         aria-describedby="intake-security-notice"
@@ -202,8 +208,8 @@ export function ComplaintIntakeForm({ mode, checkAction, submitAction }: {
 
         {!validationComplete && !submitted ? (
           <div className="oc-intake-submit">
-            <button className="oc-button" type="submit" disabled={!hydrated || busy !== null}>
-              {busy === 'check' ? 'Checking details…' : 'Check details'}
+            <button className="oc-button" type="submit" disabled={!hydrated || busy !== null} aria-busy={busy === 'check'}>
+              Check details
             </button>
             <p>Your complaint is not submitted until you review the Privacy Notice and select Submit complaint.</p>
           </div>
@@ -255,7 +261,7 @@ export function ComplaintIntakeForm({ mode, checkAction, submitAction }: {
             </fieldset>
 
             <div className="oc-intake-submit">
-              <button className="oc-button" type="button" disabled={busy !== null} onClick={submitComplaint}>
+              <button className="oc-button" type="button" disabled={busy !== null} onClick={submitComplaint} aria-busy={busy === 'submit'}>
                 {busy === 'submit' ? 'Submitting complaint…' : 'Submit complaint'}
               </button>
               <p>Submitting records the complaint and the minimum privacy acknowledgement evidence required for this intake.</p>

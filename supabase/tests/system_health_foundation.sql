@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(38);
+select plan(42);
 
 select ok(exists(select 1 from public.permissions where code='system.health.view'),'system.health.view permission exists');
 select ok(exists(select 1 from public.permissions where code='system.health.manage'),'system.health.manage permission exists');

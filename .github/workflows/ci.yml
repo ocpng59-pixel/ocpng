@@ -24,6 +24,14 @@ jobs:
       - run: supabase start
       - run: supabase db reset
       - run: npm run test:rls
+      - name: Complaint intake end-to-end and audit (WASDOK-67)
+        run: |
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export OCPNG_COMPLAINT_SUBMISSION_ENABLED="true"
+          export WASDOK67_COMPLAINT_E2E="true"
+          npx vitest run tests/complaints/intake-e2e.test.ts
       - run: npm run typecheck:domain
       - run: npm run test:domain
       - run: npm run test:schema

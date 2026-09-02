@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(50);
+select plan(53);
 
 -- Deterministic DEMO identities. FK checks are disabled only while seeding
 -- profiles because auth.uid() is driven by JWT claims in these database tests.

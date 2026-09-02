@@ -3,7 +3,7 @@
 html, body { margin: 0; min-height: 100%; }
 body { background: #f5f7fa; }
 a { color: inherit; text-decoration: none; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 .oc-shell { min-height: 100vh; display: grid; grid-template-columns: 290px 1fr; }
 .oc-sidebar { background: #10233f; color: #fff; padding: 22px 16px; overflow-y: auto; }
 .oc-brand { padding: 4px 8px 18px; border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 18px; }
@@ -64,10 +64,12 @@ button, input { font: inherit; }
 .oc-intake-field label { display: block; font-weight: 700; }
 .oc-intake-field label span { font-weight: 400; color: #455468; font-size: .875rem; }
 .oc-intake-hint { color: #455468; font-size: .875rem; margin: 4px 0 8px; }
-.oc-intake input, .oc-intake textarea { display: block; width: 100%; font: inherit; background: white; color: #172033; border: 1px solid #8190a3; border-radius: 6px; padding: 11px 12px; }
+.oc-intake input:not([type="checkbox"]), .oc-intake textarea, .oc-intake select { display: block; width: 100%; font: inherit; background: white; color: #172033; border: 1px solid #8190a3; border-radius: 6px; padding: 11px 12px; }
+.oc-intake input[type="checkbox"] { display:inline-block; width:auto; margin:0 8px 0 0; vertical-align:middle; }
 .oc-intake textarea { resize: vertical; min-height: 90px; }
+.oc-intake select { min-height: 44px; }
 .oc-intake [aria-invalid="true"] { border: 2px solid #a51d32; }
-.oc-intake :is(input, textarea, button, a):focus-visible, .oc-intake-summary:focus { outline: 3px solid #2768ad; outline-offset: 3px; }
+.oc-intake :is(input, textarea, select, button, a):focus-visible, .oc-intake-summary:focus { outline: 3px solid #2768ad; outline-offset: 3px; }
 .oc-intake-error { color: #a51d32; font-weight: 700; margin: 8px 0 0; font-size: .875rem; }
 .oc-intake-summary { border: 2px solid #a51d32; border-radius: 8px; padding: 20px; margin-bottom: 24px; background: #fff7f8; }
 .oc-intake-summary a, .oc-intake-footer a { text-decoration: underline; text-underline-offset: 3px; }

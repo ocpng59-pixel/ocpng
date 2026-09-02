@@ -22,7 +22,7 @@ const idempotencyKey = 'd72ef489-5374-4be9-82d8-8f2cebc15c34';
 const receipt = 'OC-RCP-2026-A7F19C3E5D82B641';
 const actorId = '65000000-0000-4000-8000-000000000001';
 
-function validForm() {
+function validForm(privacy: Record<string, string> = { privacyAcknowledged: 'yes' }) {
   const form = new FormData();
   for (const [key, value] of Object.entries({
     complainantName: 'DEMO Applicant',
@@ -33,6 +33,7 @@ function validForm() {
     respondent: 'DEMO Officer',
     subject: 'DEMO Matter',
     allegation: 'DEMO allegation only',
+    ...privacy,
   })) form.append(key, value);
   return form;
 }
@@ -46,7 +47,7 @@ beforeEach(() => {
   resolveAssistedContext.mockResolvedValue({ actorId, scope: 'UAT-COMPLAINTS' });
 });
 
-describe('WASDOK-65 server submission actions', () => {
+describe('WASDOK-65/66 server submission actions', () => {
   it('keeps both submission paths unavailable while the production activation gate is off', async () => {
     submissionEnabled.mockReturnValue(false);
 
@@ -63,8 +64,23 @@ describe('WASDOK-65 server submission actions', () => {
     expect(resolveAssistedContext).not.toHaveBeenCalled();
   });
 
-  it('fixes public provenance on the server and returns only the controlled receipt result', async () => {
-    const result = await submitPublicIntake(validForm(), idempotencyKey);
+  it('requires public acknowledgement before trusted persistence', async () => {
+    const result = await submitPublicIntake(validForm({}), idempotencyKey);
+
+    expect(result).toEqual({
+      status: 'invalid',
+      fieldErrors: {},
+      formError: 'You must read and acknowledge the Privacy Notice before submitting your complaint.',
+    });
+    expect(persistSubmission).not.toHaveBeenCalled();
+  });
+
+  it('fixes public provenance and minimal privacy evidence on the server', async () => {
+    const result = await submitPublicIntake(validForm({
+      privacyAcknowledged: 'yes',
+      privacyNoticeVersion: 'forged-browser-version',
+      privacyAcknowledgedAt: '1999-01-01T00:00:00Z',
+    }), idempotencyKey);
 
     expect(result).toEqual({
       status: 'submitted', fieldErrors: {}, receiptReference: receipt, duplicate: false,
@@ -76,11 +92,18 @@ describe('WASDOK-65 server submission actions', () => {
       scope: 'OCPNG',
       actorId: null,
       complaint: { subject: 'DEMO Matter' },
+      privacy: {
+        noticeVersion: 'OCPNG-COMPLAINT-PRIVACY-v1',
+        acknowledgementRequired: true,
+        method: 'public_checkbox',
+        notRequiredReason: null,
+      },
     });
+    expect(JSON.stringify(persistSubmission.mock.calls[0][0].privacy)).not.toMatch(/1999|forged|DEMO Applicant/);
     expect(JSON.stringify(result)).not.toMatch(/DEMO Applicant|DEMO allegation/);
   });
 
-  it('uses only the verified server-derived actor and scope for assisted submission', async () => {
+  it('uses only the verified server actor/scope and assisted acknowledgement evidence', async () => {
     const result = await submitAssistedIntake(validForm(), idempotencyKey);
 
     expect(result.status).toBe('submitted');
@@ -90,7 +113,43 @@ describe('WASDOK-65 server submission actions', () => {
       channel: 'assisted_internal',
       scope: 'UAT-COMPLAINTS',
       actorId,
+      privacy: {
+        noticeVersion: 'OCPNG-COMPLAINT-PRIVACY-v1',
+        acknowledgementRequired: true,
+        method: 'assisted_acknowledgement',
+        notRequiredReason: null,
+      },
     });
+  });
+
+  it('supports the approved assisted acknowledgement-not-required path', async () => {
+    const result = await submitAssistedIntake(validForm({
+      privacyNotRequiredReason: 'formal_correspondence_already_received',
+    }), idempotencyKey);
+
+    expect(result.status).toBe('submitted');
+    expect(persistSubmission).toHaveBeenCalledTimes(1);
+    expect(persistSubmission.mock.calls[0][0]).toMatchObject({
+      privacy: {
+        noticeVersion: 'OCPNG-COMPLAINT-PRIVACY-v1',
+        acknowledgementRequired: false,
+        method: 'not_required',
+        notRequiredReason: 'formal_correspondence_already_received',
+      },
+    });
+  });
+
+  it('rejects unapproved assisted acknowledgement-not-required reasons', async () => {
+    const result = await submitAssistedIntake(validForm({
+      privacyNotRequiredReason: 'browser-invented-reason',
+    }), idempotencyKey);
+
+    expect(result).toEqual({
+      status: 'invalid',
+      fieldErrors: {},
+      formError: 'Record the complainant privacy acknowledgement or select an approved reason why acknowledgement is not required.',
+    });
+    expect(persistSubmission).not.toHaveBeenCalled();
   });
 
   it('denies assisted submission when the verified server context is unavailable', async () => {

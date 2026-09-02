@@ -6,7 +6,7 @@
 
 **Architecture:** WASDOK-85 consumes safe operational metrics through server-only collectors and provider adapters, normalizes them into an allowlisted health metric catalogue, stores historical samples/snapshots in Supabase, and evaluates thresholds deterministically. Backup health comes from WASDOK-55 metadata; security health consumes only aggregate indicators supplied by WASDOK-48. The browser reads authorized normalized health data only and never calls privileged provider metrics endpoints directly.
 
-**Tech Stack:** Next.js 16.3.3 App Router, React 19.2.8, TypeScript 6.0.3, Supabase/PostgreSQL/RLS/RPC, Supabase Metrics/Management API, Node 22 collector worker, Zod 4.5.4, Vitest 4.1.11, pgTAP, GitHub Actions.
+**Tech Stack:** Next.js 16.3.3 App Router, React 19.2.8, TypeScript 6.0.3, Supabase/PostgreSQL/RLS/RPC, Supabase Management API Metrics endpoint, Node 22 collector worker, Zod 4.5.4, Vitest 4.1.11, pgTAP, GitHub Actions.
 
 **Spec:** `docs/superpowers/specs/2026-09-03-wasdok-backup-recovery-system-health-design.md`
 
@@ -55,8 +55,8 @@
 - Create `lib/operations/health/providers/backup-health.ts`.
 - Create `lib/operations/health/providers/security-health.ts`.
 
-### Collector worker / health endpoint
-- Create `app/api/health/route.ts` — safe application liveness/version response.
+### Collector worker / liveness endpoint
+- Create `app/api/health/route.ts` — public-safe liveness only; no commit, schema, environment or credential details.
 - Create `scripts/operations/health-collector.mjs`.
 - Create `scripts/operations/lib/health-collector-runner.mjs`.
 - Modify `lib/config/server-environment.ts` for server-only health collector configuration.
@@ -108,8 +108,6 @@
 
 Assert both permissions, all tables, RLS, unique metric code, metric unit/type validation, `observed_at`, `collected_at`, source/provider, stale-after seconds, and alert/status enums.
 
-Example:
-
 ```sql
 select has_table('public','system_health_metric_samples','health samples exist');
 select ok(exists(select 1 from public.permissions where code='system.health.view'),'health view permission exists');
@@ -126,13 +124,12 @@ npm run test:rls
 
 - [ ] **Step 3: Implement `02100`**
 
-Seed an allowlisted metric catalogue with stable codes including:
+Seed an allowlisted metric catalogue with stable codes:
 
 ```text
 app.availability
 app.response_latency_ms
 app.http_error_rate
-app.deployed_commit
 db.database_bytes
 db.disk_bytes
 db.wal_bytes
@@ -150,7 +147,7 @@ security.failed_logins_24h
 security.advisor_warning_count
 ```
 
-String-valued deployment metrics are stored in safe snapshot metadata rather than numeric metric sample columns.
+String-valued deployment fields such as deployed commit, release and applied migration are stored in safe `deployment_health_state` columns/metadata, not numeric metric samples.
 
 - [ ] **Step 4: Extend `PermissionCode` and run GREEN**
 
@@ -211,7 +208,7 @@ git commit -m "feat(WASDOK-85): add health ingestion thresholds and alerts"
 
 - [ ] **Step 1: Write RED authenticated direct-DML tests**
 
-Prove INSERT/UPDATE/DELETE are denied on all health tables and `anon` has no health RPC execution.
+Prove INSERT/UPDATE/DELETE are denied on all health tables and `anon` has no health-administration/read RPC execution.
 
 - [ ] **Step 2: Implement `02300`**
 
@@ -253,7 +250,7 @@ Prove missing sample = UNKNOWN, stale sample = UNKNOWN, threshold evaluation res
 
 - [ ] **Step 2: Write RED forecast tests**
 
-Use ordinary least-squares slope over daily samples with minimum 7 distinct days and maximum 90-day lookback. Less than 7 points returns `INSUFFICIENT_DATA`. Negative projected bytes clamp at zero. Forecasting uses observed numeric data only; no AI/model call.
+Use ordinary least-squares slope over daily samples with minimum 7 distinct days and maximum 90-day lookback. Less than 7 points returns `INSUFFICIENT_DATA`. Negative projected byte values clamp at zero. Forecasting uses observed numeric data only and makes no AI/model call.
 
 - [ ] **Step 3: Implement minimal domain logic and run GREEN**
 
@@ -293,21 +290,31 @@ export interface HealthProvider { collect(): Promise<CollectedHealthMetric[]>; }
 
 - [ ] **Step 1: Write RED provider tests**
 
-Mock Supabase Metrics/Management API and prove Prometheus text is parsed only for allowlisted metric names, unexpected labels/metrics are dropped, provider 401/403/429/5xx become UNKNOWN source state, and error messages do not contain credentials.
+Mock `GET /v1/projects/{ref}/analytics/endpoints/metrics` and prove Prometheus text is parsed only for allowlisted metric names, unexpected labels/metrics are dropped, provider `401/403/429/5xx` become UNKNOWN source state, and errors do not contain credentials.
 
-- [ ] **Step 2: Implement Supabase metrics adapter**
+- [ ] **Step 2: Implement server-only health configuration**
 
-Use server-only scoped analytics credential for Management API metrics scrape or approved secret API-key endpoint configuration. Normalize CPU/IO/WAL/connection/query metrics into catalogue codes. Do not persist raw Prometheus payloads.
+Add `getSystemHealthOperationsConfiguration()` reading `OCPNG_SUPABASE_PROJECT_REF`, `OCPNG_SUPABASE_HEALTH_TOKEN`, and `OCPNG_PUBLIC_APP_URL`. The health token is a separately managed fine-grained Management API token limited to the metrics-read permission needed for the scrape endpoint. None of these secrets are returned to browser code; the public app URL is not secret but remains server configuration.
 
-- [ ] **Step 3: Implement safe database/storage aggregates**
+- [ ] **Step 3: Implement Supabase metrics adapter**
 
-Use server-side/service-only reads to calculate database size, approved table-size aggregates, storage object count/bytes and latest migration state. Never return Storage object names/paths or protected record values.
+Use server-only `fetch` against the Management API metrics endpoint with bearer authorization, timeout/abort and redacted errors. Normalize approved CPU/IO/WAL/connection/query metrics into catalogue codes. Do not persist raw Prometheus payloads.
 
-- [ ] **Step 4: Implement safe application probe**
+- [ ] **Step 4: Implement safe database/storage aggregates**
 
-`app/api/health/route.ts` returns only liveness, release/commit identifier, expected schema version and timestamp. It exposes no environment variables or credentials.
+Use server-side/service-only reads to calculate database size, approved table-size aggregates, Storage object count/bytes and latest migration state. Never return Storage object names/paths or protected record values.
 
-- [ ] **Step 5: Run GREEN and commit**
+- [ ] **Step 5: Implement public-safe liveness endpoint and application probe**
+
+`app/api/health/route.ts` returns only:
+
+```json
+{"status":"ok"}
+```
+
+plus an HTTP 200 timestamp header generated by the platform if desired; it does not return commit, schema version, environment, database state or secrets. `application-probe.ts` measures availability/latency from this route. Deployment commit/schema state is collected separately from server environment/database metadata.
+
+- [ ] **Step 6: Run GREEN and commit**
 
 ```bash
 npx vitest run tests/health/provider-contracts.test.ts tests/health/security-boundary.test.ts
@@ -333,7 +340,7 @@ Backup health reads WASDOK-55 verified/restore metadata only; no archive URL/con
 
 - [ ] **Step 2: Implement integrations**
 
-Calculate backup age from last VERIFIED/AVAILABLE archive/recovery metadata and restore-rehearsal age from completed restore test. Do not equate a failed or unverified backup with healthy freshness.
+Calculate backup age from last VERIFIED/AVAILABLE archive/recovery metadata and restore-rehearsal age from completed restore test. Do not equate a failed or unverified backup with healthy freshness. Collect deployed commit/release identifier server-side from the deployment environment and persist only the safe identifier in `deployment_health_state`; do not expose raw environment variables.
 
 - [ ] **Step 3: Run GREEN and commit**
 
@@ -359,11 +366,11 @@ Using fake providers, prove one run collects all sources independently, one fail
 
 - [ ] **Step 2: Implement collector**
 
-`health-collector.mjs --once` invokes providers concurrently with bounded timeouts, normalizes results, calls service-only `record_health_snapshot`, evaluates current thresholds, and persists/open/closes alerts idempotently.
+`health-collector.mjs --once` invokes providers concurrently with bounded timeouts, normalizes results, calls service-only `record_health_snapshot`, evaluates current thresholds, and persists/opens/resolves alerts idempotently.
 
-- [ ] **Step 3: Add periodic mode contract**
+- [ ] **Step 3: Define production scheduling contract**
 
-The executable supports repeated external scheduling but does not implement an endless loop inside Netlify request functions. Production scheduler invokes `--once` at the approved cadence; 60 seconds is the recommended Supabase Metrics scrape cadence, while snapshot persistence may be downsampled according to retention policy.
+The executable is single-run only. Production scheduling invokes `--once` externally at the approved cadence; no endless loop runs inside Netlify request functions. Supabase metrics may be scraped at the provider-recommended 60-second cadence, while WASDOK can persist a coarser operational snapshot (for example five-minute/current plus daily rollup) according to the deployment runbook.
 
 - [ ] **Step 4: Run GREEN and commit**
 
@@ -379,9 +386,19 @@ git commit -m "feat(WASDOK-85): add system health collector worker"
 ### Task 8: System Health dashboard and threshold administration
 
 **Files:**
-- Create: `app/dashboard/operations/system-health/*`
+- Create: `app/dashboard/operations/system-health/page.tsx`
+- Create: `app/dashboard/operations/system-health/database/page.tsx`
+- Create: `app/dashboard/operations/system-health/storage/page.tsx`
+- Create: `app/dashboard/operations/system-health/backups/page.tsx`
+- Create: `app/dashboard/operations/system-health/deployment/page.tsx`
+- Create: `app/dashboard/operations/system-health/alerts/page.tsx`
 - Create: `app/dashboard/operations/system-health/actions.ts`
-- Create: `components/operations/health/*`
+- Create: `components/operations/health/health-status-card.tsx`
+- Create: `components/operations/health/metric-table.tsx`
+- Create: `components/operations/health/growth-chart.tsx`
+- Create: `components/operations/health/capacity-forecast-card.tsx`
+- Create: `components/operations/health/threshold-form.tsx`
+- Create: `components/operations/health/alert-table.tsx`
 - Create: `lib/operations/health/queries.ts`
 - Create: `lib/operations/health/mutations.ts`
 - Modify: `lib/rbac/navigation.ts`
@@ -441,7 +458,7 @@ Add `System Health end-to-end (WASDOK-85)` after database reset/pgTAP and WASDOK
 
 - [ ] **Step 4: Write metric catalogue/runbook**
 
-Document each metric code, unit, source, scrape/sample cadence, stale threshold, default threshold direction, privacy classification and fallback behavior. Deployment runbook requires ordered `02100 → 02200 → 02300`, scoped server-only analytics credential, application probe URL, collector scheduler, and initial collector dry run.
+Document each metric code, unit, source, scrape/sample cadence, stale threshold, default threshold direction, privacy classification and fallback behavior. Deployment runbook requires ordered `02100 → 02200 → 02300`, scoped `analytics_logs_read` Management API credential, public app probe URL, collector scheduler, expected schema version and initial collector dry run.
 
 - [ ] **Step 5: Full exact-head verification**
 
@@ -476,7 +493,7 @@ Target the release branch that already contains merged WASDOK-55. PR body lists 
 2. Verify post-merge CI on the exact release merge commit.
 3. Request explicit hosted Supabase migration approval for `02100–02300`.
 4. Apply only those migrations to the OCPNG project.
-5. Configure server-only health collector credentials and scheduler separately; never expose them to Netlify browser variables.
+5. Configure server-only `OCPNG_SUPABASE_HEALTH_TOKEN`, project ref, public app URL and collector scheduler separately; never expose the token through browser variables.
 6. Run one controlled collector cycle and verify application/database/Storage/backup/deployment signals. Missing provider integrations must show UNKNOWN, not HEALTHY.
 7. Observe at least one snapshot interval, confirm growth history is recording, and test a non-destructive threshold alert using controlled DEMO/test metric ingestion where possible.
 8. Run Security Advisor and negative-access review.

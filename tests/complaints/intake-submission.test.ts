@@ -16,9 +16,7 @@ function validForm() {
     respondent: ' DEMO Officer ',
     subject: ' DEMO Matter ',
     allegation: ' DEMO allegation only ',
-  })) {
-    form.append(key, value);
-  }
+  })) form.append(key, value);
   return form;
 }
 
@@ -93,6 +91,7 @@ describe('WASDOK-65 trusted complaint submission orchestration', () => {
     }, { persist });
 
     expect(result.status).toBe('invalid');
+    if (result.status !== 'invalid') throw new Error('Expected invalid result');
     expect(result.fieldErrors.allegation).toBeTruthy();
     expect(persist).not.toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain('DEMO Applicant');
@@ -122,6 +121,7 @@ describe('WASDOK-65 trusted complaint submission orchestration', () => {
     }, { persist });
 
     expect(result.status).toBe('unavailable');
+    if (result.status !== 'unavailable') throw new Error('Expected unavailable result');
     expect(result.formError).toBe('Unable to submit the complaint right now. Please try again.');
     expect(JSON.stringify(result)).not.toContain(malformed);
     expect(persist).not.toHaveBeenCalled();

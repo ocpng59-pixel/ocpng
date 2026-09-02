@@ -21,8 +21,8 @@ const submissionDisabled = (): IntakeSubmissionResult => ({
   formError: 'Complaint submission is not enabled yet.',
 });
 
-const assistedUnauthorized = (): IntakeSubmissionResult => ({
-  status: 'unauthorized',
+const assistedUnauthorized = () => ({
+  status: 'unauthorized' as const,
   fieldErrors: {},
   formError: 'Your session or access has changed. Sign in again or contact your administrator before continuing.',
 });

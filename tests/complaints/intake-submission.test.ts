@@ -16,6 +16,7 @@ function validForm() {
     respondent: ' DEMO Officer ',
     subject: ' DEMO Matter ',
     allegation: ' DEMO allegation only ',
+    privacyAcknowledged: 'yes',
   })) form.append(key, value);
   return form;
 }
@@ -24,7 +25,7 @@ const idempotencyKey = 'd72ef489-5374-4be9-82d8-8f2cebc15c34';
 const expectedHash = createHash('sha256').update(idempotencyKey).digest('hex');
 const receipt = 'OC-RCP-2026-A7F19C3E5D82B641';
 
-describe('WASDOK-65 trusted complaint submission orchestration', () => {
+describe('WASDOK-65/66 trusted complaint submission orchestration', () => {
   it('validates, normalizes, hashes the retry token and returns only a controlled receipt', async () => {
     const persist = vi.fn(async (_input: PersistComplaintSubmission) => ({
       receiptReference: receipt,
@@ -60,6 +61,12 @@ describe('WASDOK-65 trusted complaint submission orchestration', () => {
         respondent: 'DEMO Officer',
         subject: 'DEMO Matter',
         allegation: 'DEMO allegation only',
+      },
+      privacy: {
+        noticeVersion: 'OCPNG-COMPLAINT-PRIVACY-v1',
+        acknowledgementRequired: true,
+        method: 'public_checkbox',
+        notRequiredReason: null,
       },
     });
     expect(JSON.stringify(persist.mock.calls[0][0])).not.toContain(idempotencyKey);

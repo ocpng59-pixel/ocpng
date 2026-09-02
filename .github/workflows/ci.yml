@@ -32,6 +32,24 @@ jobs:
           export OCPNG_COMPLAINT_SUBMISSION_ENABLED="true"
           export WASDOK67_COMPLAINT_E2E="true"
           npx vitest run tests/complaints/intake-e2e.test.ts
+      - name: Access Control end-to-end (WASDOK-78)
+        run: |
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export WASDOK78_ACCESS_E2E="true"
+          npx vitest run tests/access-control/e2e.test.ts
+      - name: Reset local database for Task 10 concurrency isolation
+        run: supabase db reset
+      - name: Access Control last-admin concurrency (WASDOK-78 Task 10)
+        run: |
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export WASDOK78_ACCESS_E2E="true"
+          npx vitest run tests/access-control/task10-concurrency-e2e.test.ts
       - run: npm run typecheck:domain
       - run: npm run test:domain
       - run: npm run test:schema

@@ -81,3 +81,24 @@ button, input, select { font: inherit; }
 .oc-intake-success { background: #edf8f2; border-color: #8dbca1; color: #175537; }
 .oc-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 640px) { .oc-intake-public { padding: 20px 16px; } .oc-intake-section { padding: 18px; } .oc-intake-grid { grid-template-columns: 1fr; gap: 0; } .oc-intake-submit { align-items: flex-start; flex-direction: column; } }
+
+.oc-admin-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:18px; }
+.oc-admin-section { margin-top:28px; }
+.oc-admin-table { width:100%; border-collapse:collapse; font-size:.86rem; }
+.oc-admin-table th,.oc-admin-table td { text-align:left; vertical-align:top; padding:11px 10px; border-bottom:1px solid #e4e9ef; }
+.oc-admin-table th { color:#455468; font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; }
+.oc-table-scroll { overflow-x:auto; }
+.oc-table-link { text-decoration:underline; text-underline-offset:3px; }
+.oc-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.oc-form-grid label { display:block; font-size:.82rem; font-weight:700; margin-bottom:6px; }
+.oc-form-grid input,.oc-form-grid select,.oc-form-grid textarea,.oc-inline-actions input { width:100%; padding:10px 11px; border:1px solid #cdd6e0; border-radius:7px; background:#fff; color:#172033; font:inherit; }
+.oc-form-grid textarea { resize:vertical; }
+.oc-form-span { grid-column:1 / -1; }
+.oc-inline-actions { display:flex; gap:8px; align-items:center; min-width:280px; }
+.oc-inline-actions input { min-width:170px; }
+.oc-field-error { color:#9f1239; font-size:.78rem; font-weight:700; margin-top:5px; }
+.oc-action-link { display:inline-flex; align-items:center; min-height:38px; background:#fff; color:#10233f; border:1px solid #cbd5e1; padding:8px 11px; border-radius:7px; font-size:.84rem; font-weight:700; }
+.oc-action-link:hover,.oc-action-link.active { background:#e9eff6; border-color:#9eacbd; }
+.oc-access-success { background:#edf8f2; border-color:#8dbca1; color:#175537; margin:8px 0; }
+.oc-access-error { background:#fff7f8; border-color:#d8a1aa; color:#8f1830; margin:8px 0; }
+@media (max-width:760px) { .oc-form-grid { grid-template-columns:1fr; } .oc-inline-actions { align-items:stretch; flex-direction:column; min-width:220px; } }

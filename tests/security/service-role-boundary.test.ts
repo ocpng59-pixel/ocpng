@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   getServiceSupabaseConfiguration,
@@ -65,5 +65,23 @@ describe('WASDOK-65 privileged Supabase server boundary', () => {
     expect(source).toMatch(/autoRefreshToken:\s*false/);
     expect(source).toMatch(/detectSessionInUrl:\s*false/);
     expect(source).not.toContain('NEXT_PUBLIC_SUPABASE_SERVICE');
+  });
+
+  it('keeps every Access Control UI component away from the privileged service client', () => {
+    const clientBoundaryFiles = [
+      'components/access-control/action-message.tsx',
+      'components/access-control/role-form.tsx',
+      'components/access-control/permission-matrix.tsx',
+      'components/access-control/user-access-form.tsx',
+      'components/access-control/user-invite-form.tsx',
+    ];
+
+    for (const file of clientBoundaryFiles) {
+      expect(existsSync(file), `Expected ${file} to exist`).toBe(true);
+      const source = readFileSync(file, 'utf8');
+      expect(source).not.toContain('@/lib/supabase/service');
+      expect(source).not.toContain('lib/supabase/service');
+      expect(source).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+    }
   });
 });

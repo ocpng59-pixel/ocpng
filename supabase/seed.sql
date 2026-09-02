@@ -4,6 +4,24 @@ insert into public.roles (code,name,is_system) values
 ('director','Director',true),('team_leader','Team Leader',true),('senior_investigator','Senior Investigator',true),('investigator','Investigator',true),('system_administrator','System Administrator',true)
 on conflict (code) do nothing;
 
+insert into public.roles (code,name,description,is_system,is_active,role_type,metadata)
+values (
+  'training_super_admin',
+  'Training Super Administrator',
+  'DEMO/UAT application-wide functional role; not an infrastructure superuser.',
+  false,
+  true,
+  'training',
+  '{"demo_role":true}'::jsonb
+)
+on conflict (code) do update
+set name = excluded.name,
+    description = excluded.description,
+    role_type = 'training',
+    is_active = true,
+    is_system = false,
+    metadata = public.roles.metadata || '{"demo_role":true}'::jsonb;
+
 insert into public.permissions (code,name,domain) values
 ('dashboard.view','View dashboard','Dashboard'),('complaints.view','View complaints','Complaints'),('complaints.create','Create complaints','Complaints'),('complaints.screen','Screen complaints','Complaints'),
 ('investigations.view','View investigations','Investigations'),('investigations.manage','Manage investigations','Investigations'),('evidence.manage','Manage evidence','Investigations'),

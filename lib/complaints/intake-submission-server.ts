@@ -17,7 +17,7 @@ export async function persistComplaintSubmission(
 ): Promise<PersistComplaintSubmissionResult> {
   try {
     const client = createServiceSupabaseClient();
-    const { complaint } = submission;
+    const { complaint, privacy } = submission;
     const { data, error } = await client.rpc('persist_complaint_intake_submission', {
       p_channel: submission.channel,
       p_scope: submission.scope,
@@ -31,6 +31,10 @@ export async function persistComplaintSubmission(
       p_respondent: complaint.respondent,
       p_subject: complaint.subject,
       p_allegation: complaint.allegation,
+      p_privacy_notice_version: privacy.noticeVersion,
+      p_privacy_acknowledgement_required: privacy.acknowledgementRequired,
+      p_privacy_acknowledgement_method: privacy.method,
+      p_privacy_not_required_reason: privacy.notRequiredReason,
     });
 
     const row = Array.isArray(data) && data.length === 1 ? data[0] : null;

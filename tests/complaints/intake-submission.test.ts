@@ -6,7 +6,8 @@ import {
 } from '@/lib/complaints/intake-submission';
 
 function validForm() {
-  return new FormData(Object.entries({
+  const form = new FormData();
+  for (const [key, value] of Object.entries({
     complainantName: '  DEMO Applicant  ',
     email: 'demo@example.invalid',
     phone: '',
@@ -15,7 +16,10 @@ function validForm() {
     respondent: ' DEMO Officer ',
     subject: ' DEMO Matter ',
     allegation: ' DEMO allegation only ',
-  }));
+  })) {
+    form.append(key, value);
+  }
+  return form;
 }
 
 const idempotencyKey = 'd72ef489-5374-4be9-82d8-8f2cebc15c34';

@@ -6,7 +6,7 @@
 
 **Architecture:** Use PostgreSQL/Supabase for operational metadata, authorization, lifecycle and immutable audit evidence; use server-only provider adapters and an operations worker for long-running export/copy/package/verify/restore work. Provider-managed Supabase backup/PITR remains the database recovery mechanism, while WASDOK creates portable encrypted archives covering application database, Auth/identity recovery references, and Storage object bytes. Browser code never receives provider management tokens, service-role keys, database passwords, S3 credentials or archive encryption key material.
 
-**Tech Stack:** Next.js 16.3.3 App Router, React 19.2.8, TypeScript 6.0.3, Supabase/PostgreSQL/RLS/RPC, Supabase Management API, Supabase Storage API, Node 22 operations worker, Node `crypto`, streaming archive library, Zod 4.5.4, Vitest 4.1.11, pgTAP, GitHub Actions.
+**Tech Stack:** Next.js 16.3.3 App Router, React 19.2.8, TypeScript 6.0.3, Supabase/PostgreSQL/RLS/RPC, Supabase Management API, Supabase Storage API, Node 22 operations worker, Node `crypto`, `archiver` streaming ZIP packaging, Zod 4.5.4, Vitest 4.1.11, pgTAP, GitHub Actions.
 
 **Spec:** `docs/superpowers/specs/2026-09-03-wasdok-backup-recovery-system-health-design.md` and `docs/superpowers/specs/2026-09-03-wasdok-backup-recovery-identity-coverage-clarification.md`
 
@@ -104,8 +104,6 @@
 
 Use rollback-wrapped pgTAP and assert all nine permissions, all tables, RLS on every table, unique immutable `backup_code`, restore requester/authorizer columns, and a constraint preventing a restore authorization row from having `authorizer_user_id = requester_user_id`.
 
-Example assertions:
-
 ```sql
 select has_table('public','backup_jobs','backup jobs table exists');
 select ok(exists(select 1 from public.permissions where code='backup.download'),'backup.download exists');
@@ -125,7 +123,7 @@ Expected: existing tests pass; new WASDOK-55 schema assertions fail because the 
 
 - [ ] **Step 3: Implement migration `01800`**
 
-Create enums/tables with UUID primary keys, `created_at`, actor/provenance fields, safe provider reference fields and checks such as:
+Create enums/tables with UUID primary keys, `created_at`, actor/provenance fields, safe provider reference fields and checks:
 
 ```sql
 check (backup_code ~ '^BKP-[0-9]{4}-[0-9]{6}$')
@@ -166,17 +164,17 @@ git commit -m "feat(WASDOK-55): add backup recovery foundation"
 
 **Interfaces:**
 - `request_backup(p_backup_type text, p_reason text) returns uuid`
-- `record_backup_worker_transition(p_backup_id uuid, p_from text, p_to text, p_safe_metadata jsonb) returns void` — callable only through trusted service/worker path, never normal authenticated browser role.
+- `record_backup_worker_transition(p_backup_id uuid, p_from text, p_to text, p_safe_metadata jsonb) returns void` — trusted service/worker path only.
 - `record_backup_verification(p_backup_id uuid, p_status text, p_safe_metadata jsonb) returns void`.
 - `request_backup_download(p_backup_id uuid, p_reason text) returns uuid` — records authorized request; does not return a signed URL from SQL.
 - `request_restore_test(p_backup_id uuid, p_reason text) returns uuid`.
 - `request_production_restore(p_recovery_ref text, p_recovery_time timestamptz, p_reason text) returns uuid`.
 - `authorize_production_restore(p_restore_id uuid, p_reason text) returns void`.
-- `record_restore_worker_transition(...)` — trusted worker only.
+- `record_restore_worker_transition(p_restore_id uuid, p_from text, p_to text, p_safe_metadata jsonb) returns void` — trusted service/worker path only.
 
 - [ ] **Step 1: Write RED workflow/security tests**
 
-Prove permission enforcement, mandatory 3–500 reason, illegal lifecycle transitions rejected with `23514`, self-authorization rejected, one user without `backup.authorize_production_restore` cannot authorize, an authorization cannot target an already rejected/completed restore, and safe audit events are appended for request/authorization/completion without credentials or archive contents.
+Prove permission enforcement, mandatory 3–500 reason, illegal lifecycle transitions rejected with `23514`, self-authorization rejected, a user without `backup.authorize_production_restore` cannot authorize, an authorization cannot target an already rejected/completed restore, and safe audit events are appended for request/authorization/completion without credentials or archive contents.
 
 - [ ] **Step 2: Run RED**
 
@@ -197,7 +195,7 @@ private.assert_backup_transition(from_state text, to_state text)
 private.assert_restore_transition(from_state text, to_state text)
 ```
 
-Authenticated request RPCs use `SECURITY DEFINER set search_path=''` and resolve actor from `auth.uid()`. Worker transition RPCs reject ordinary authenticated execution and are granted only to the trusted server role used by the operations worker.
+Authenticated request RPCs use `SECURITY DEFINER set search_path=''` and resolve actor from `auth.uid()`. Worker transition RPCs reject ordinary authenticated execution and are granted only to the trusted service role used by the operations worker.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -274,11 +272,11 @@ export interface ArchiveKeyProvider { getEncryptionKey(keyRef: string): Promise<
 
 - [ ] **Step 1: Write RED validation/security tests**
 
-Test server-only configuration rejects missing/invalid project ref, Management API token, archive key reference and backup bucket. Scan browser-facing code for `SUPABASE_MANAGEMENT`, `DATABASE_URL`, `service_role`, `OCPNG_BACKUP_MASTER_KEY`, and `createServiceSupabaseClient` imports.
+Test server-only configuration rejects missing/invalid project ref, Management API token, database URL, archive key reference and backup bucket. Scan browser-facing code for `SUPABASE_MANAGEMENT`, `DATABASE_URL`, `service_role`, `OCPNG_BACKUP_MASTER_KEY`, and `createServiceSupabaseClient` imports.
 
 - [ ] **Step 2: Implement server configuration**
 
-Add a dedicated function such as `getBackupOperationsConfiguration()` returning only from server runtime environment. Use distinct environment variables for project ref, scoped Management API credential, archive bucket and key reference. Never prefix them `NEXT_PUBLIC_`.
+Add `getBackupOperationsConfiguration()` reading these server-only values: `OCPNG_SUPABASE_PROJECT_REF`, `OCPNG_SUPABASE_MANAGEMENT_TOKEN`, `OCPNG_BACKUP_DATABASE_URL`, `OCPNG_BACKUP_BUCKET`, and `OCPNG_BACKUP_KEY_REF`. Never prefix any of them `NEXT_PUBLIC_`. The configuration object may carry secrets only inside server-only modules and worker code; UI/action return values must never include them.
 
 - [ ] **Step 3: Implement provider contracts/types and run GREEN**
 
@@ -333,15 +331,15 @@ git commit -m "feat(WASDOK-55): add Supabase recovery provider adapter"
 
 - [ ] **Step 1: Write RED recovery-domain tests**
 
-A `FULL` manifest must fail verification unless it contains safe statuses for `application_database`, `identity_auth`, and `storage_objects`. Test that no manifest serializer accepts values matching password/token/key field names.
+A `FULL` manifest must fail verification unless it contains safe statuses for `application_database`, `identity_auth`, and `storage_objects`. Test that no manifest serializer accepts values under field names matching password/token/key/secret credential patterns.
 
 - [ ] **Step 2: Implement database archive provider**
 
-Invoke the approved Supabase CLI/pg_dump-compatible logical export in a child process using a server-side database URL passed only through process environment, write roles/schema/data and migration-history files into a private work directory, and redact command output. Never write connection strings into manifest or logs.
+Invoke the approved Supabase CLI logical export in a child process using `OCPNG_BACKUP_DATABASE_URL` only through child-process environment. Create `roles.sql`, `schema.sql`, `data.sql`, and a migration-history export under a private temporary directory. Redact child-process output and never write the connection string into manifest/logs.
 
 - [ ] **Step 3: Implement identity coverage adapter**
 
-For the first release, provider-native physical/PITR recovery is the authoritative identity recovery path. `verifyCoverage()` must return `VERIFIED_PROVIDER_RECOVERY` only when the selected provider recovery status proves Auth/identity recovery is available for the same recovery set; otherwise `FULL` archive verification fails.
+For the first release, provider-native physical/PITR recovery is the authoritative identity recovery path. `verifyCoverage()` returns `VERIFIED_PROVIDER_RECOVERY` only when selected provider recovery status proves Auth/identity recovery is available for the same recovery set; otherwise `FULL` verification fails.
 
 - [ ] **Step 4: Implement Storage exporter**
 
@@ -359,31 +357,39 @@ git commit -m "feat(WASDOK-55): add comprehensive archive providers"
 
 ---
 
-### Task 7: Streaming package encryption, archive store and download grants
+### Task 7: Streaming ZIP encryption, archive store and download grants
 
 **Files:**
 - Create: `lib/operations/backups/package.ts`
 - Create: `lib/operations/backups/providers/archive-key.ts`
 - Create: `lib/operations/backups/providers/archive-store.ts`
-- Modify: `package.json` / lockfile for one streaming archive dependency if required.
+- Modify: `package.json` and `package-lock.json` — add runtime dependency `archiver` and dev dependency `@types/archiver`.
 - Modify: `tests/backups/manifest-package.test.ts`
 
 - [ ] **Step 1: Write RED crypto/package tests**
 
 Prove packaging is streaming, output filename ends `.zip.enc`, AES-256-GCM metadata contains nonce/tag/key-reference but no key material, SHA-256 is computed over final encrypted artifact, and tampering causes verification failure.
 
-- [ ] **Step 2: Implement package pipeline**
-
-Create ZIP using a streaming archive library, pipe through Node `crypto.createCipheriv('aes-256-gcm', ...)`, and write to a temporary protected file. Zero/clear in-memory key buffer in a `finally` block after use.
-
-- [ ] **Step 3: Implement archive store**
-
-Use a dedicated private Supabase backup bucket as the first provider adapter. Store only encrypted artifacts/manifests. `createDownloadGrant` returns a short-lived signed URL only after application authorization has been checked by server action; signed URL is not persisted.
-
-- [ ] **Step 4: Run GREEN and commit**
+- [ ] **Step 2: Install the selected archive dependency**
 
 ```bash
-npm install
+npm install archiver
+npm install -D @types/archiver
+```
+
+Commit the resulting `package.json` and `package-lock.json`; do not hand-edit the resolved dependency version.
+
+- [ ] **Step 3: Implement package pipeline**
+
+Create ZIP with `archiver`, pipe the ZIP stream through `crypto.createCipheriv('aes-256-gcm', ...)`, and write a temporary protected `.zip.enc`. Persist nonce/tag/key-reference/checksum metadata only. Overwrite/fill the in-memory key `Buffer` with zeros in `finally` after the cipher is initialized/completed.
+
+- [ ] **Step 4: Implement archive store**
+
+Use a dedicated private Supabase backup bucket as the first `ArchiveStore` adapter. Store encrypted artifacts and safe manifests only. `createDownloadGrant()` returns a short-lived signed URL after application authorization has been checked by server action; the URL is never persisted to database/audit state.
+
+- [ ] **Step 5: Run GREEN and commit**
+
+```bash
 npx vitest run tests/backups/manifest-package.test.ts
 npm run typecheck
 npm run lint
@@ -408,7 +414,7 @@ Use fake providers and prove exact lifecycle order `QUEUED → RUNNING → PACKA
 
 - [ ] **Step 2: Implement one-job runner**
 
-`backup-worker.mjs --job-id <uuid>` loads one queued job, obtains server-only providers, uses an isolated temporary directory, performs export/identity coverage/storage/package/verification/store, records worker transitions, and cleans temporary plaintext files in `finally`.
+`backup-worker.mjs --job-id <uuid>` loads one queued job, obtains server-only providers, uses an isolated temporary directory, performs export/identity coverage/storage/package/verification/store, records worker transitions, and recursively removes temporary plaintext/export files in `finally`.
 
 - [ ] **Step 3: Add schedule/retention worker modes**
 
@@ -432,7 +438,11 @@ git commit -m "feat(WASDOK-55): add backup operations worker"
 - Create: `app/dashboard/operations/backups/[backupId]/page.tsx`
 - Create: `app/dashboard/operations/backups/restore/page.tsx`
 - Create: `app/dashboard/operations/backups/actions.ts`
-- Create: `components/operations/backups/*`
+- Create: `components/operations/backups/backup-request-form.tsx`
+- Create: `components/operations/backups/backup-status-card.tsx`
+- Create: `components/operations/backups/backup-history-table.tsx`
+- Create: `components/operations/backups/restore-request-form.tsx`
+- Create: `components/operations/backups/restore-authorization-panel.tsx`
 - Modify: `lib/rbac/navigation.ts`
 - Create: `tests/backups/routes-actions.test.ts`
 
@@ -477,17 +487,17 @@ Gate with `WASDOK55_BACKUP_E2E=true`. Use only `DEMO WASDOK55` metadata and fake
 
 - [ ] **Step 2: Add static security rules**
 
-Fail CI if client-facing backup code contains Management API token names, database URLs, `SUPABASE_SERVICE_ROLE_KEY`, archive key variables, provider signed URLs persisted to source/state, or service-client imports.
+Fail CI if client-facing backup code contains Management API token names, database URLs, `SUPABASE_SERVICE_ROLE_KEY`, archive key variables, persisted provider signed URLs or service-client imports.
 
 - [ ] **Step 3: Add CI stage**
 
-Add `Backup & Recovery end-to-end (WASDOK-55)` after local database reset/pgTAP and before final static/type/build gates. CI uses fake providers; it must never call the production Management API or create real archives.
+Add `Backup & Recovery end-to-end (WASDOK-55)` after local database reset/pgTAP and before final static/type/build gates. CI uses fake providers and never calls the production Management API or creates production archives.
 
 - [ ] **Step 4: Write deployment/restore runbooks**
 
-Runbook must require ordered `01800 → 01900 → 02000`, scoped Management API token permissions (`backups_read`; `backups_write` only where production restore is explicitly enabled), dedicated private backup bucket, key-provider configuration, worker-host configuration, dry-run recovery-point listing, and no production restore during deployment verification.
+Deployment requires ordered `01800 → 01900 → 02000`, scoped Management API token permissions (`backups_read`; add `backups_write` only when production restore is explicitly enabled), dedicated private backup bucket, database URL, key-provider reference, worker-host configuration, recovery-point listing dry run, and no production restore during deployment verification.
 
-Restore rehearsal document must specify isolated environment, identity + application database + Storage restoration, record/object count checks, login/auth smoke test, migration integrity, RPO/RTO measurement and cleanup.
+Restore rehearsal specifies isolated environment, identity + application database + Storage restoration, record/object count checks, login/Auth smoke test, migration integrity, RPO/RTO measurement and cleanup.
 
 - [ ] **Step 5: Full exact-head verification**
 
@@ -521,7 +531,7 @@ Target `feat/wasdok360-release1`, list migrations `01800–02000`, state that re
 2. Verify post-merge CI on the release-branch merge commit.
 3. Request explicit approval for hosted database migrations `01800–02000`.
 4. Apply only those migrations to the OCPNG Supabase project.
-5. Configure server-only backup bucket/key/worker credentials through the approved secret-management path; this is a separate production enablement step, not a database migration.
+5. Configure server-only backup bucket/key/database/Management API/worker credentials through the approved secret-management path; this is a separate production enablement step, not a database migration.
 6. Verify recovery-point listing and archive creation using a controlled non-production or explicitly approved production backup job; do not invoke production PITR restore.
 7. Perform an isolated restore rehearsal and record identity/database/Storage verification plus achieved RPO/RTO.
 8. Run Security Advisor and privileged-boundary review.

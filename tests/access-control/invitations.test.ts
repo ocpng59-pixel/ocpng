@@ -59,12 +59,16 @@ describe('WASDOK-78 protected user invitation adapter', () => {
     expect(createServiceClient).not.toHaveBeenCalled();
   });
 
-  it('invites an authorized user with only safe Auth metadata', async () => {
-    const rpc = vi.fn(async () => ({ data: true, error: null }));
+  it('invites an authorized user and records immutable invitation audit evidence', async () => {
+    const invitedUserId = '78000000-0000-0000-0000-000000000020';
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: true, error: null })
+      .mockResolvedValueOnce({ data: null, error: null });
     createServerClient.mockResolvedValue({ rpc });
 
-    const inviteUserByEmail = vi.fn(async () => ({ data: { user: { id: '78000000-0000-0000-0000-000000000020' } }, error: null }));
-    createServiceClient.mockReturnValue({ auth: { admin: { inviteUserByEmail } } });
+    const inviteUserByEmail = vi.fn(async () => ({ data: { user: { id: invitedUserId } }, error: null }));
+    const deleteUser = vi.fn(async () => ({ data: null, error: null }));
+    createServiceClient.mockReturnValue({ auth: { admin: { inviteUserByEmail, deleteUser } } });
 
     await expect(inviteApplicationUser({
       email: ' new.user@example.invalid ',
@@ -76,6 +80,31 @@ describe('WASDOK-78 protected user invitation adapter', () => {
     expect(inviteUserByEmail).toHaveBeenCalledWith('new.user@example.invalid', {
       data: { display_name: 'DEMO WASDOK78 New User' },
     });
+    expect(rpc).toHaveBeenNthCalledWith(2, 'admin_record_user_invitation', {
+      p_user_id: invitedUserId,
+      p_reason: 'Invite controlled UAT user',
+    });
+    expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('compensates the Auth identity when immutable invitation audit recording fails', async () => {
+    const invitedUserId = '78000000-0000-0000-0000-000000000021';
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: true, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'DEMO audit denial' } });
+    createServerClient.mockResolvedValue({ rpc });
+
+    const inviteUserByEmail = vi.fn(async () => ({ data: { user: { id: invitedUserId } }, error: null }));
+    const deleteUser = vi.fn(async () => ({ data: null, error: null }));
+    createServiceClient.mockReturnValue({ auth: { admin: { inviteUserByEmail, deleteUser } } });
+
+    await expect(inviteApplicationUser({
+      email: 'new.user@example.invalid',
+      displayName: 'DEMO WASDOK78 New User',
+      reason: 'Invite controlled UAT user',
+    })).resolves.toEqual({ ok: false, message: 'The user invitation could not be completed securely.' });
+
+    expect(deleteUser).toHaveBeenCalledWith(invitedUserId);
   });
 
   it('never returns raw privileged configuration or Auth error material', async () => {
@@ -87,7 +116,8 @@ describe('WASDOK-78 protected user invitation adapter', () => {
       data: null,
       error: { message: `Auth failed with ${exposedSecret}`, code: 'unexpected_failure' },
     }));
-    createServiceClient.mockReturnValue({ auth: { admin: { inviteUserByEmail } } });
+    const deleteUser = vi.fn(async () => ({ data: null, error: null }));
+    createServiceClient.mockReturnValue({ auth: { admin: { inviteUserByEmail, deleteUser } } });
 
     const result = await inviteApplicationUser({
       email: 'new.user@example.invalid',

@@ -237,15 +237,24 @@ select lives_ok(
 );
 select ok(
   (select status='AUTHORIZED' from public.restore_runs where restore_type='PRODUCTION' order by created_at desc limit 1)
-  and (select count(*) from public.restore_authorizations where requester_user_id='55000000-0000-0000-0000-000000000001' and authorizer_user_id='55000000-0000-0000-0000-000000000002')=1,
-  'production restore becomes AUTHORIZED with different requester and authorizer'
+  and (select count(*) from public.restore_authorizations where restore_run_id=(select id from public.restore_runs where restore_type='PRODUCTION' order by created_at desc limit 1) and requester_user_id='55000000-0000-0000-0000-000000000001' and authorizer_user_id='55000000-0000-0000-0000-000000000002')=1,
+  'production restore records distinct requester and authorizer and becomes AUTHORIZED'
+);
+select ok(
+  (select count(*) from public.audit_events where action='restore.production_authorized' and actor_id='55000000-0000-0000-0000-000000000002')=1,
+  'production restore authorization is audited'
 );
 select throws_ok(
-  $$select public.authorize_production_restore((select id from public.restore_runs where restore_type='PRODUCTION' order by created_at desc limit 1),'Duplicate authorization attempt')$$,
-  '23514',null,'already authorized restore cannot be authorized again'
+  $$select public.authorize_production_restore((select id from public.restore_runs where restore_type='PRODUCTION' order by created_at desc limit 1),'Second authorization after state change')$$,
+  '23514',null,'already-authorized restore cannot be authorized again'
 );
 
--- 42-45: schedule and retention administration are permission controlled and audited.
+-- 42-45: schedule and retention administration.
+select set_config('request.jwt.claim.sub','55000000-0000-0000-0000-000000000003',true);
+select throws_ok(
+  $$select public.admin_upsert_backup_schedule(null,'FULL_ARCHIVE','FREQ=WEEKLY',null,true,'Unauthorized schedule change')$$,
+  '42501',null,'schedule administration requires backup.schedule'
+);
 select set_config('request.jwt.claim.sub','55000000-0000-0000-0000-000000000001',true);
 select lives_ok(
   $$select public.admin_upsert_backup_schedule(null,'FULL_ARCHIVE','FREQ=WEEKLY',null,true,'Configure DEMO weekly archive')$$,
@@ -274,9 +283,9 @@ select throws_ok(
 select ok(
   not exists(
     select 1 from public.audit_events
-    where action like 'backup.%' or action like 'restore.%'
-    and lower(coalesce(request_metadata::text,'') || coalesce(metadata::text,'') || coalesce(before_data::text,'') || coalesce(after_data::text,''))
-      ~ '(password|service_role|bearer|signed_url|encryption_key|database_url)'
+    where (action like 'backup.%' or action like 'restore.%')
+      and lower(coalesce(request_metadata::text,'') || coalesce(metadata::text,'') || coalesce(before_data::text,'') || coalesce(after_data::text,''))
+        ~ '(password|service_role|bearer|signed_url|encryption_key|database_url)'
   ),
   'backup and restore audit evidence contains no credential-like metadata'
 );

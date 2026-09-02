@@ -73,22 +73,22 @@ select has_function(
 );
 
 select ok(
-  position('PERFORM private.lock_access_admin_invariant()' in pg_get_functiondef('public.admin_set_role_active(uuid,boolean,text)'::regprocedure)) > 0,
+  position('perform private.lock_access_admin_invariant()' in lower(pg_get_functiondef('public.admin_set_role_active(uuid,boolean,text)'::regprocedure))) > 0,
   'role deactivation serializes the last-admin invariant'
 );
 
 select ok(
-  position('PERFORM private.lock_access_admin_invariant()' in pg_get_functiondef('public.admin_revoke_role_permission(uuid,text,text)'::regprocedure)) > 0,
+  position('perform private.lock_access_admin_invariant()' in lower(pg_get_functiondef('public.admin_revoke_role_permission(uuid,text,text)'::regprocedure))) > 0,
   'role-permission revocation serializes the last-admin invariant'
 );
 
 select ok(
-  position('PERFORM private.lock_access_admin_invariant()' in pg_get_functiondef('public.admin_revoke_user_role(uuid,uuid,text)'::regprocedure)) > 0,
+  position('perform private.lock_access_admin_invariant()' in lower(pg_get_functiondef('public.admin_revoke_user_role(uuid,uuid,text)'::regprocedure))) > 0,
   'user-role revocation serializes the last-admin invariant'
 );
 
 select ok(
-  position('PERFORM private.lock_access_admin_invariant()' in pg_get_functiondef('public.admin_set_user_active(uuid,boolean,text)'::regprocedure)) > 0,
+  position('perform private.lock_access_admin_invariant()' in lower(pg_get_functiondef('public.admin_set_user_active(uuid,boolean,text)'::regprocedure))) > 0,
   'user suspension serializes the last-admin invariant'
 );
 

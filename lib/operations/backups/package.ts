@@ -146,7 +146,9 @@ export async function verifyEncryptedArchive(
   });
 
   try {
-    encryptedInput.on('data', (chunk: Buffer) => hash.update(chunk));
+    encryptedInput.on('data', (chunk) => {
+      hash.update(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    });
     await pipeline(encryptedInput, decipher, sink);
     if (hash.digest('hex') !== artifact.checksumSha256) {
       throw new Error('Encrypted archive checksum mismatch.');

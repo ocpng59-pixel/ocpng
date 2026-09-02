@@ -1,5 +1,11 @@
 -- WASDOK-78 — configurable Access Control Administration
--- Forward-only migration: lifecycle history and controlled administration foundation.
+-- Forward-only migration: lifecycle state and controlled administration foundation.
+--
+-- Compatibility amendment approved 2026-09-02:
+-- Keep the existing composite unique constraints on the live RBAC relationship
+-- tables. Each relationship therefore has one authoritative current row. Grant
+-- and revoke RPCs update that row in place, while immutable audit_events retain
+-- the complete historical sequence of privileged access changes.
 
 create schema if not exists private;
 
@@ -34,27 +40,6 @@ alter table public.data_scopes add column if not exists revoked_by uuid referenc
 alter table public.user_compartments add column if not exists is_active boolean not null default true;
 alter table public.user_compartments add column if not exists revoked_at timestamptz;
 alter table public.user_compartments add column if not exists revoked_by uuid references public.profiles(id);
-
-alter table public.user_roles drop constraint if exists user_roles_user_id_role_id_key;
-alter table public.role_permissions drop constraint if exists role_permissions_role_id_permission_id_key;
-alter table public.data_scopes drop constraint if exists data_scopes_user_id_scope_code_key;
-alter table public.user_compartments drop constraint if exists user_compartments_user_id_compartment_id_key;
-
-create unique index if not exists user_roles_one_active
-  on public.user_roles(user_id, role_id)
-  where is_active;
-
-create unique index if not exists role_permissions_one_active
-  on public.role_permissions(role_id, permission_id)
-  where is_active;
-
-create unique index if not exists data_scopes_one_active
-  on public.data_scopes(user_id, scope_code)
-  where active;
-
-create unique index if not exists user_compartments_one_active
-  on public.user_compartments(user_id, compartment_id)
-  where is_active;
 
 create or replace function private.handle_new_auth_user()
 returns trigger

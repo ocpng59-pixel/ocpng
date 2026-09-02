@@ -48,7 +48,9 @@ export type PermissionCode =
   | 'backup.restore_test'
   | 'backup.restore_production'
   | 'backup.authorize_production_restore'
-  | 'backup.manage_retention';
+  | 'backup.manage_retention'
+  | 'system.health.view'
+  | 'system.health.manage';
 
 export interface NavigationItem {
   title: string;

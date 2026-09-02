@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(16);
+select plan(18);
 
 -- Fictional Task 3 identities.
 insert into auth.users (
@@ -158,7 +158,7 @@ select set_config('request.jwt.claim.sub','78000000-0000-0000-0000-000000000311'
 select ok(not public.has_permission('wasdok78.permission.test'),'revoke changes has_permission immediately');
 select set_config('request.jwt.claim.sub','78000000-0000-0000-0000-000000000310',true);
 
--- 12: re-grant reactivates the same row; history remains in audit_events.
+-- 12-13: re-grant reactivates the same row; history remains in audit_events.
 select lives_ok(
   $$select public.admin_grant_role_permission('78000000-0000-0000-0000-000000000321','wasdok78.permission.test','Re-grant DEMO functional permission')$$,
   're-grant reactivates a previously revoked authoritative row'
@@ -177,13 +177,13 @@ select ok(
   're-grant keeps one row and appends a second grant audit event'
 );
 
--- 13: held-role protection also blocks revocation.
+-- 14: held-role protection also blocks revocation.
 select throws_ok(
   $$select public.admin_revoke_role_permission('78000000-0000-0000-0000-000000000320','admin.manage_roles','Attempt revoke on held role')$$,
   '42501',null,'administrator cannot revoke permissions on a held role'
 );
 
--- 14: the only admin.manage_users path cannot be removed.
+-- 15-16: the only admin.manage_users path cannot be removed and mutation rolls back.
 select throws_ok(
   $$select public.admin_revoke_role_permission('78000000-0000-0000-0000-000000000322','admin.manage_users','Attempt removal of final user administrator')$$,
   '23514',null,'removing the final admin.manage_users path is rejected'
@@ -194,7 +194,7 @@ select ok(
   'failed final-user-admin revoke rolls back the candidate mutation'
 );
 
--- 15: the last-role-admin invariant is independently enforced by the database guard.
+-- 17: the last-role-admin invariant is independently enforced by the database guard.
 -- Temporarily remove the Task 3 caller path and make role 323 the only effective role-admin path.
 update public.role_permissions rp set is_active=false, revoked_at=now()
 from public.permissions p
@@ -208,7 +208,7 @@ select throws_ok(
   '23514',null,'database guard rejects removal of the final admin.manage_roles path'
 );
 
--- 16: non-administrator cannot mutate the permission matrix.
+-- 18: non-administrator cannot mutate the permission matrix.
 select set_config('request.jwt.claim.sub','78000000-0000-0000-0000-000000000312',true);
 select throws_ok(
   $$select public.admin_grant_role_permission('78000000-0000-0000-0000-000000000321','reports.view','Unauthorized permission grant')$$,

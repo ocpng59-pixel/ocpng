@@ -23,7 +23,7 @@ export type PersistComplaintSubmissionResult = {
 export type IntakeSubmissionResult =
   | {
       status: 'submitted';
-      fieldErrors: {};
+      fieldErrors: Record<string, never>;
       receiptReference: string;
       duplicate: boolean;
     }

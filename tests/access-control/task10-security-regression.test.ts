@@ -6,9 +6,11 @@ const invitationPath = 'lib/access-control/invitations.ts';
 const deploymentRunbookPath = 'docs/deployment/WASDOK-78-HOSTED-DEPLOYMENT.md';
 
 function functionDefinition(source: string, functionName: string): string {
-  const escaped = functionName.replaceAll('.', '\\.');
-  const match = source.match(new RegExp(`create or replace function ${escaped}\\([^]*?\\n\\$\\$;`, 'i'));
-  return match?.[0] ?? '';
+  const marker = `create or replace function ${functionName}(`;
+  const start = source.toLowerCase().indexOf(marker.toLowerCase());
+  if (start < 0) return '';
+  const end = source.indexOf('\n$$;', start);
+  return end < 0 ? source.slice(start) : source.slice(start, end + 4);
 }
 
 describe('WASDOK-78 Task 10 security regression contract', () => {

@@ -60,6 +60,18 @@ export type RetentionPolicyView = {
   isActive: boolean;
 };
 
+export type RestoreRunView = {
+  id: string;
+  restoreType: string;
+  status: string;
+  requestedBy: string;
+  requestReason: string;
+  requestedRecoveryTime: string | null;
+  createdAt: string;
+  authorizationCount: number;
+  latestVerificationStatus: string | null;
+};
+
 type Row = Record<string, unknown>;
 
 async function client() {
@@ -187,4 +199,34 @@ export async function listRecoveryPoints(): Promise<ProviderRecoveryStatus> {
     earliestRecoveryTime: points.map((point) => point.earliestRecoveryTime).find(Boolean) ?? null,
     latestRecoveryTime: points.map((point) => point.latestRecoveryTime).find(Boolean) ?? null,
   };
+}
+
+export async function listRestoreRuns(): Promise<RestoreRunView[]> {
+  const supabase = await client();
+  const [runsResult, authorizationsResult, verificationsResult] = await Promise.all([
+    supabase.from('restore_runs')
+      .select('id,restore_type,status,requested_by,request_reason,requested_recovery_time,created_at')
+      .order('created_at', { ascending: false }).limit(100),
+    supabase.from('restore_authorizations')
+      .select('restore_run_id,authorized_at').order('authorized_at', { ascending: false }),
+    supabase.from('restore_verifications')
+      .select('restore_run_id,status,created_at').order('created_at', { ascending: false }),
+  ]);
+  if (runsResult.error) return [];
+  const authorizations = (authorizationsResult.data ?? []) as Row[];
+  const verifications = (verificationsResult.data ?? []) as Row[];
+  return ((runsResult.data ?? []) as Row[]).map((row) => {
+    const id = text(row, 'id');
+    return {
+      id,
+      restoreType: text(row, 'restore_type'),
+      status: text(row, 'status'),
+      requestedBy: text(row, 'requested_by'),
+      requestReason: text(row, 'request_reason'),
+      requestedRecoveryTime: nullableText(row, 'requested_recovery_time'),
+      createdAt: text(row, 'created_at'),
+      authorizationCount: authorizations.filter((item) => text(item, 'restore_run_id') === id).length,
+      latestVerificationStatus: nullableText(verifications.find((item) => text(item, 'restore_run_id') === id) ?? {}, 'status'),
+    };
+  });
 }

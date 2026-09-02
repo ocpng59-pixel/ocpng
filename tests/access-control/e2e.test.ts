@@ -42,7 +42,8 @@ async function createAuthenticatedDemoUser(
   service: SupabaseClient,
   label: string,
 ): Promise<{ id: string; email: string; client: SupabaseClient }> {
-  const email = `wasdok78-${label}-${suffix}@test.invalid`;
+  const emailLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const email = `wasdok78-${emailLabel}-${suffix}@example.com`;
   const { data: created, error: createError } = await service.auth.admin.createUser({
     email,
     password: demoPassword,

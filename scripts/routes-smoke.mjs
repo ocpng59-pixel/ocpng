@@ -9,9 +9,12 @@ const requiredFiles = [
   'app/dashboard/users/actions.ts','app/dashboard/users/page.tsx','app/dashboard/users/[userId]/page.tsx','app/dashboard/users/[userId]/access/page.tsx',
   'app/dashboard/users/roles/actions.ts','app/dashboard/users/roles/page.tsx','app/dashboard/users/roles/new/page.tsx','app/dashboard/users/roles/[roleId]/page.tsx',
   'app/dashboard/users/permissions/page.tsx','app/dashboard/users/scopes-compartments/page.tsx',
+  'app/dashboard/operations/backups/page.tsx','app/dashboard/operations/backups/[backupId]/page.tsx','app/dashboard/operations/backups/restore/page.tsx','app/dashboard/operations/backups/actions.ts',
   'components/app-shell.tsx','components/sidebar.tsx','components/sign-out-control.tsx','components/module-landing.tsx',
   'components/access-control/action-message.tsx','components/access-control/role-form.tsx','components/access-control/permission-matrix.tsx',
   'components/access-control/user-access-form.tsx','components/access-control/user-invite-form.tsx',
+  'components/operations/backups/backup-request-form.tsx','components/operations/backups/backup-status-card.tsx','components/operations/backups/backup-history-table.tsx',
+  'components/operations/backups/backup-schedule-form.tsx','components/operations/backups/retention-policy-form.tsx','components/operations/backups/restore-request-form.tsx','components/operations/backups/restore-authorization-panel.tsx',
   'lib/config/module-pages.ts','lib/supabase/browser.ts','lib/supabase/server.ts','lib/rbac/authorized-navigation.ts','lib/rbac/module-route-authorization.ts'
 ];
 for (const rel of requiredFiles) assert.ok(fs.existsSync(path.join(root.pathname, rel)), `missing route or shell file: ${rel}`);
@@ -23,9 +26,14 @@ const routeAuthorization = fs.readFileSync(path.join(root.pathname,'lib/rbac/mod
 const appShell = fs.readFileSync(path.join(root.pathname,'components/app-shell.tsx'),'utf8');
 const sidebar = fs.readFileSync(path.join(root.pathname,'components/sidebar.tsx'),'utf8');
 const signOutControl = fs.readFileSync(path.join(root.pathname,'components/sign-out-control.tsx'),'utf8');
+const navigation = fs.readFileSync(path.join(root.pathname,'lib/rbac/navigation.ts'),'utf8');
 const hrefs = [
 '/dashboard/complaints','/dashboard/complaints/new','/dashboard/complaints/referrals','/dashboard/complaints/administrative','/dashboard/complaints/human-rights','/dashboard/complaints/police','/dashboard/intake','/dashboard/investigations','/dashboard/investigations/plans','/dashboard/investigations/evidence','/dashboard/investigations/right-to-be-heard','/dashboard/investigations/findings','/dashboard/leadership','/dashboard/leadership/investigations','/dashboard/leadership/referrals','/dashboard/leadership/tribunals','/dashboard/annual-statements','/dashboard/annual-statements/variance-review','/dashboard/government-bodies','/dashboard/oversight','/dashboard/oversight/inspections','/dashboard/oversight/systemic-issues','/dashboard/compliance','/dashboard/compliance/actions','/dashboard/compliance/escalations','/dashboard/commission','/dashboard/commission/decisions','/dashboard/legal','/dashboard/legal/matters','/dashboard/intelligence','/dashboard/intelligence/analysis','/dashboard/reports','/dashboard/tasks','/dashboard/notifications','/dashboard/users','/dashboard/users/roles','/dashboard/audit-log','/dashboard/settings'];
 for (const href of hrefs) assert.ok(definitions.includes(`'${href}'`), `missing module definition: ${href}`);
+const directRoutes = ['/dashboard/operations/backups','/dashboard/operations/backups/restore'];
+for (const href of directRoutes) assert.ok(navigation.includes(`'${href}'`) || requiredFiles.some((rel)=>rel.includes(href.replace('/dashboard/',''))), `missing direct route: ${href}`);
+assert.match(navigation, /Backup & Recovery/);
+assert.match(navigation, /backup\.view/);
 assert.doesNotMatch(definitions.toLowerCase(), /ff3|ff4|budget allocation|expense ledger/);
 assert.match(definitions, /LEADERSHIP_RESTRICTED/);
 assert.match(definitions, /ANNUAL_STATEMENT_SECRET/);
@@ -60,4 +68,4 @@ assert.match(moduleRoute, /has_compartment/);
 assert.match(moduleRoute, /if \(!authorized\) notFound\(\)/);
 assert.match(moduleRoute, /authorizedActions/);
 assert.match(moduleRoute, /actions:\s*authorizedActions/);
-console.log(`WASDOK 360 route smoke checks: PASS (${hrefs.length} configured module surfaces; ${requiredFiles.length} required route/shell files)`);
+console.log(`WASDOK 360 route smoke checks: PASS (${hrefs.length} configured module surfaces; ${directRoutes.length} direct operational routes; ${requiredFiles.length} required route/shell files)`);

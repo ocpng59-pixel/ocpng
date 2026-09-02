@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { RestoreAuthorizationPanel } from '@/components/operations/backups/restore-authorization-panel';
 import { RestoreRequestForm } from '@/components/operations/backups/restore-request-form';
-import { listBackupJobs, listRecoveryPoints } from '@/lib/operations/backups/queries';
+import { listBackupJobs, listRecoveryPoints, listRestoreRuns } from '@/lib/operations/backups/queries';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 async function permissions() {
@@ -26,7 +26,9 @@ export default async function RestoreCentrePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const access = await permissions();
-  const [backups, recovery, query] = await Promise.all([listBackupJobs(), listRecoveryPoints(), searchParams]);
+  const [backups, recovery, restoreRuns, query] = await Promise.all([
+    listBackupJobs(), listRecoveryPoints(), listRestoreRuns(), searchParams,
+  ]);
   const notice = typeof query.notice === 'string' ? query.notice : null;
   const error = typeof query.error === 'string' ? query.error : null;
 
@@ -36,6 +38,7 @@ export default async function RestoreCentrePage({
     {error ? <p className="oc-card" role="alert">{error}</p> : null}
     <section className="oc-card"><h2>Provider recovery coverage</h2><p>{recovery.enabled ? `${recovery.points.length} recovery point(s) currently recorded.` : 'No provider recovery points are currently recorded.'}</p><p>Earliest: {recovery.earliestRecoveryTime ?? 'unknown'} · Latest: {recovery.latestRecoveryTime ?? 'unknown'}</p></section>
     <RestoreRequestForm backups={backups} recovery={recovery} canRestoreTest={access.canRestoreTest} canRestoreProduction={access.canRestoreProduction} />
-    <RestoreAuthorizationPanel canAuthorize={access.canAuthorize} />
+    <RestoreAuthorizationPanel canAuthorize={access.canAuthorize} restoreRuns={restoreRuns} />
+    <section className="oc-card"><h2>Restore history</h2>{restoreRuns.length === 0 ? <p>No restore runs recorded.</p> : <div className="oc-table-scroll"><table className="oc-admin-table"><thead><tr><th>Run</th><th>Type</th><th>Status</th><th>Recovery time</th><th>Authorizations</th><th>Verification</th></tr></thead><tbody>{restoreRuns.map((run) => <tr key={run.id}><td><code>{run.id}</code></td><td>{run.restoreType}</td><td>{run.status}</td><td>{run.requestedRecoveryTime ?? '—'}</td><td>{run.authorizationCount}</td><td>{run.latestVerificationStatus ?? 'Pending'}</td></tr>)}</tbody></table></div>}</section>
   </>;
 }

@@ -99,6 +99,9 @@ select exists(
 );
 $$;
 
+-- Keep the WASDOK-27 positional-argument protection: the input parameter is
+-- named scope_code for signature compatibility, but comparisons use $1 so the
+-- stored column can never shadow the requested scope value.
 create or replace function public.has_scope(scope_code text)
 returns boolean
 language sql
@@ -113,13 +116,13 @@ select exists(
     and pr.is_active
 )
 and (
-  scope_code is null
+  $1 is null
   or exists(
     select 1
     from public.data_scopes ds
     where ds.user_id=auth.uid()
       and ds.active
-      and (ds.scope_code=scope_code or ds.scope_code='*')
+      and (ds.scope_code=$1 or ds.scope_code='*')
   )
 );
 $$;

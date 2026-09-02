@@ -27,7 +27,7 @@ begin
 end;
 $$;
 
-select plan(38);
+select plan(39);
 
 -- Fictional WASDOK-85 identities.
 insert into auth.users (
@@ -202,7 +202,7 @@ select lives_ok($$select * from public.read_system_health_thresholds()$$,'health
 select lives_ok($$select * from public.read_system_health_alerts(null)$$,'health viewer can read normalized alerts');
 select ok(pg_temp.health_read_alert_count()=1,'normalized alert read exposes the active alert without provider payload');
 
--- 35-38: acknowledgement requires manage authority, reason and immutable audit.
+-- 35-39: acknowledgement requires manage authority, reason and immutable audit.
 select set_config('request.jwt.claim.sub','85000000-0000-0000-0000-000000000002',true);
 select throws_ok(
   $$select public.acknowledge_health_alert((select id from public.system_health_alerts where metric_code='db.database_bytes' and status='OPEN'),'Viewer cannot acknowledge DEMO alert')$$,

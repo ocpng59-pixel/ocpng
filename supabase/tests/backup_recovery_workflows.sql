@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(47);
+select plan(49);
 
 -- Fictional Task 2 identities.
 insert into auth.users (

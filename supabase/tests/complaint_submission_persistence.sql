@@ -54,9 +54,9 @@ select has_column('public','complaint_intakes','respondent','Respondent is persi
 select has_column('public','complaint_intakes','subject','Subject is persisted');
 select has_column('public','complaint_intakes','allegation','Allegation is persisted');
 select has_function('public','persist_complaint_intake_submission',array['text','text','uuid','text','text','text','text','text','text','text','text','text'],'Trusted persistence RPC exists');
-select ok(not has_function_privilege('anon','public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)','EXECUTE'),'Anonymous role cannot execute persistence RPC');
-select ok(not has_function_privilege('authenticated','public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)','EXECUTE'),'Authenticated browser cannot execute persistence RPC');
-select ok(has_function_privilege('service_role','public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)','EXECUTE'),'Trusted service role can execute persistence RPC');
+select ok(not coalesce(has_function_privilege('anon',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)'),'EXECUTE'),false),'Anonymous role cannot execute persistence RPC');
+select ok(not coalesce(has_function_privilege('authenticated',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)'),'EXECUTE'),false),'Authenticated browser cannot execute persistence RPC');
+select ok(coalesce(has_function_privilege('service_role',to_regprocedure('public.persist_complaint_intake_submission(text,text,uuid,text,text,text,text,text,text,text,text,text)'),'EXECUTE'),false),'Trusted service role can execute persistence RPC');
 
 set local role service_role;
 

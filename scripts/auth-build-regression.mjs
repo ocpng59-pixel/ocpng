@@ -61,8 +61,26 @@ async function smokeRequests() {
       assert.equal(response.status, 200, `Public route unavailable: ${route}`);
       assertNoPrivilegedCredentials(await response.text(), route, secrets);
     }
+
+    const protectedRoutes = [
+      '/dashboard',
+      '/dashboard/complaints',
+      '/dashboard/complaints/new',
+      '/dashboard/investigations/DEMO-62',
+      '/dashboard/annual-statements',
+      '/dashboard/legal',
+      '/dashboard/users',
+      '/dashboard/users/roles',
+      '/dashboard/users/roles/new',
+      '/dashboard/users/roles/78000000-0000-0000-0000-000000000078',
+      '/dashboard/users/permissions',
+      '/dashboard/users/scopes-compartments',
+      '/dashboard/users/78000000-0000-0000-0000-000000000078',
+      '/dashboard/users/78000000-0000-0000-0000-000000000078/access',
+    ];
+
     let count = 0;
-    for (const route of ['/dashboard', '/dashboard/complaints', '/dashboard/complaints/new', '/dashboard/investigations/DEMO-62', '/dashboard/annual-statements', '/dashboard/legal']) {
+    for (const route of protectedRoutes) {
       for (const headers of [{}, { RSC: '1' }, { Cookie: 'sb-127-auth-token=DEMO-invalid-session' }]) {
         for (const method of ['GET', 'HEAD']) {
           const response = await fetch(`${origin}${route}?private=DEMO-sensitive`, {

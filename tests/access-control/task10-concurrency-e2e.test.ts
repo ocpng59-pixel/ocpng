@@ -48,6 +48,17 @@ describeE2E('WASDOK-78 Task 10 last-admin concurrency', () => {
     roleAdminA = await makeUser(service, 'role-admin-a');
     roleAdminB = await makeUser(service, 'role-admin-b');
 
+    // This E2E runs after an explicit local db reset. Fail-safe isolation also
+    // deactivates any unexpected seeded profile so the two target users are the
+    // only effective role administrators in the concurrency invariant.
+    const { error: isolationError } = await service
+      .from('profiles')
+      .update({ is_active: false })
+      .neq('id', userAdmin.id)
+      .neq('id', roleAdminA.id)
+      .neq('id', roleAdminB.id);
+    expect(isolationError).toBeNull();
+
     const roleIds = {
       userAdmin: randomUUID(),
       roleAdmin: randomUUID(),

@@ -36,60 +36,64 @@
 - Create `supabase/migrations/20260903001500_help_content_foundation.sql` — enums, `help_topics`, `help_context_bindings`, `help_content_versions`, permission catalogue additions, core constraints and baseline RLS.
 - Create `supabase/migrations/20260903001600_help_lifecycle_search.sql` — audited administration RPCs, publication lifecycle, authorized contextual discovery/search and public-safe read functions.
 - Create `supabase/migrations/20260903001700_help_direct_write_boundary.sql` — direct-write revocations, hardened execution grants, stable-key/immutability guards and final security boundary.
-- Create `supabase/tests/help_content_foundation.sql` — schema/constraint/permission/RLS contract.
-- Create `supabase/tests/help_lifecycle_search.sql` — lifecycle, audit, search-disclosure, public, locale and training authorization contract.
-- Create `supabase/tests/help_direct_write_denial.sql` — direct DML denial and protected history tests.
+- Create `supabase/tests/help_content_foundation.sql`.
+- Create `supabase/tests/help_lifecycle_search.sql`.
+- Create `supabase/tests/help_direct_write_denial.sql`.
 
 ### Help domain
-- Create `lib/help/types.ts` — domain contracts shared by queries/components.
-- Create `lib/help/validation.ts` — Zod validation for keys, locale, content, links, search and admin reasons.
-- Create `lib/help/queries.ts` — server-only contextual discovery, article retrieval, search and administration-read adapters.
-- Create `lib/help/mutations.ts` — server-only audited RPC adapters with safe SQLSTATE mapping.
-- Create `lib/help/context.ts` — route/field/action/workflow context request builders and English fallback rules.
-- Create `lib/help/training.ts` — training-presentation determination without authorization escalation.
+- Create `lib/help/types.ts`.
+- Create `lib/help/validation.ts`.
+- Create `lib/help/context.ts`.
+- Create `lib/help/training.ts`.
+- Create `lib/help/queries.ts`.
+- Create `lib/help/mutations.ts`.
+- Create `lib/help/public.ts`.
 
 ### User-facing Help
-- Create `app/dashboard/help/page.tsx` — searchable Help Centre.
-- Create `app/dashboard/help/[helpKey]/page.tsx` — authorized article page.
-- Create `app/dashboard/help/actions.ts` — authenticated contextual/search server actions used by client components.
-- Create `components/help/help-drawer.tsx` — AppShell contextual Help drawer.
-- Create `components/help/help-panel-content.tsx` — common rendering for topic guidance.
-- Create `components/help/help-field-tip.tsx` — accessible field help.
-- Create `components/help/guided-entry-prompt.tsx` — “Show me what to enter” structure/examples.
-- Create `components/help/help-search-form.tsx` — search UI.
-- Modify `components/app-shell.tsx` — mount Help control/drawer.
-- Modify `app/dashboard/layout.tsx` only if server-derived training/user Help context must be passed to AppShell.
-- Modify `lib/rbac/navigation.ts` — add Help Centre navigation entry available to authenticated users through an existing permission-safe strategy described in Task 6.
-- Modify `lib/rbac/types.ts` — add `help.manage` / `help.publish` to `PermissionCode`.
+- Create `app/dashboard/help/page.tsx`.
+- Create `app/dashboard/help/[helpKey]/page.tsx`.
+- Create `app/dashboard/help/actions.ts`.
+- Create `components/help/help-drawer.tsx`.
+- Create `components/help/help-panel-content.tsx`.
+- Create `components/help/help-field-tip.tsx`.
+- Create `components/help/guided-entry-prompt.tsx`.
+- Create `components/help/help-search-form.tsx`.
+- Modify `components/app-shell.tsx`.
 
 ### Public/complaint Help adoption
-- Create `lib/help/public.ts` — PUBLIC-only contextual query adapter with no authenticated assumptions.
-- Modify `components/complaints/intake-form.tsx` — accept safe Help bundle and render field tips/Guided Entry Prompt while retaining static fallback hints during migration.
-- Modify `app/dashboard/complaints/new/page.tsx` — load authenticated Help bundle for assisted intake.
-- Modify the existing public complaint intake page that renders `ComplaintIntakeForm` — load PUBLIC-only Help bundle.
+- Modify `components/complaints/intake-form.tsx`.
+- Modify `app/dashboard/complaints/new/page.tsx`.
+- Modify `app/complaints/intake/page.tsx`.
 
 ### Help Administration
-- Create `app/dashboard/help/admin/page.tsx` — topic catalogue.
-- Create `app/dashboard/help/admin/new/page.tsx` — topic creation.
-- Create `app/dashboard/help/admin/[topicId]/page.tsx` — topic/version/binding editor and history.
-- Create `app/dashboard/help/admin/actions.ts` — protected server actions.
+- Create `app/dashboard/help/admin/page.tsx`.
+- Create `app/dashboard/help/admin/new/page.tsx`.
+- Create `app/dashboard/help/admin/[topicId]/page.tsx`.
+- Create `app/dashboard/help/admin/actions.ts`.
 - Create `components/help/admin/help-topic-form.tsx`.
 - Create `components/help/admin/help-version-form.tsx`.
 - Create `components/help/admin/help-binding-form.tsx`.
 - Create `components/help/admin/help-version-history.tsx`.
 
-### Tests / CI / docs
+### Existing authorization / seed / verification files
+- Modify `lib/rbac/types.ts` — add `help.manage` / `help.publish`.
+- Modify `supabase/seed.sql` — fictional Help seed content only.
+- Modify `scripts/routes-smoke.mjs`.
+- Modify `scripts/static-security.mjs` — enforce Help client/service-role boundary.
+- Modify `.github/workflows/ci.yml`.
+- Create `docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md`.
+
+### Tests
 - Create `tests/help/validation.test.ts`.
 - Create `tests/help/queries.test.ts`.
 - Create `tests/help/mutations.test.ts`.
 - Create `tests/help/routes.test.ts`.
 - Create `tests/help/components.test.tsx`.
-- Create `tests/help/e2e.test.ts`.
+- Create `tests/help/complaint-intake-integration.test.tsx`.
+- Create `tests/help/training-locale.test.ts`.
 - Create `tests/help/security-boundary.test.ts`.
-- Modify `scripts/routes-smoke.mjs`.
-- Modify `scripts/static-security.mjs` only if needed to add Help client-boundary assertions without weakening current checks.
-- Modify `.github/workflows/ci.yml` — add WASDOK-81 Help E2E after local reset/pgTAP, preserving existing WASDOK-67/78 stages.
-- Create `docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md` — ordered migration and rollback-safe verifier runbook.
+- Create `tests/help/e2e.test.ts`.
+- Create `tests/help/ci-contract.test.ts`.
 
 ---
 
@@ -99,43 +103,43 @@
 - Create: `supabase/tests/help_content_foundation.sql`
 - Create: `supabase/migrations/20260903001500_help_content_foundation.sql`
 - Modify: `lib/rbac/types.ts`
-- Test: `supabase/tests/help_content_foundation.sql`
 
 **Interfaces:**
-- Produces PostgreSQL enums: `help_content_type`, `help_audience`, `help_visibility`, `help_content_status`, `help_display_region`.
-- Produces tables: `public.help_topics`, `public.help_context_bindings`, `public.help_content_versions`.
-- Produces permission codes `help.manage` and `help.publish` in `public.permissions` and TypeScript `PermissionCode`.
-- No administration mutation RPCs are created in this task.
+- Produces PostgreSQL enums `help_content_type`, `help_audience`, `help_visibility`, `help_content_status`, `help_display_region`.
+- Produces `public.help_topics`, `public.help_context_bindings`, `public.help_content_versions`.
+- Produces permission codes `help.manage` and `help.publish` in both PostgreSQL and TypeScript.
 
 - [ ] **Step 1: Write the failing pgTAP contract**
 
-Create `supabase/tests/help_content_foundation.sql` with a rollback-wrapped pgTAP suite that asserts:
+Create `supabase/tests/help_content_foundation.sql`:
 
 ```sql
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(18);
+select plan(15);
 
-select has_table('public', 'help_topics', 'help_topics exists');
-select has_table('public', 'help_context_bindings', 'help_context_bindings exists');
-select has_table('public', 'help_content_versions', 'help_content_versions exists');
-select ok(exists(select 1 from public.permissions where code='help.manage'), 'help.manage exists');
-select ok(exists(select 1 from public.permissions where code='help.publish'), 'help.publish exists');
+select has_table('public','help_topics','help_topics exists');
+select has_table('public','help_context_bindings','help_context_bindings exists');
+select has_table('public','help_content_versions','help_content_versions exists');
+select ok(exists(select 1 from public.permissions where code='help.manage'),'help.manage exists');
+select ok(exists(select 1 from public.permissions where code='help.publish'),'help.publish exists');
 select col_is_pk('public','help_topics','id','help topic id is primary key');
 select col_is_unique('public','help_topics','help_key','help key is unique');
-select ok((select relrowsecurity from pg_class where oid='public.help_topics'::regclass), 'help_topics RLS enabled');
-select ok((select relrowsecurity from pg_class where oid='public.help_context_bindings'::regclass), 'bindings RLS enabled');
-select ok((select relrowsecurity from pg_class where oid='public.help_content_versions'::regclass), 'versions RLS enabled');
--- Add assertions for immutable-key trigger/function presence, binding selector check,
--- unique (topic, locale, version_number), content status values, and PUBLIC classification rule.
+select ok((select relrowsecurity from pg_class where oid='public.help_topics'::regclass),'help_topics RLS enabled');
+select ok((select relrowsecurity from pg_class where oid='public.help_context_bindings'::regclass),'bindings RLS enabled');
+select ok((select relrowsecurity from pg_class where oid='public.help_content_versions'::regclass),'versions RLS enabled');
+select ok(exists(select 1 from pg_constraint where conname='help_binding_has_selector'),'binding selector check exists');
+select ok(exists(select 1 from pg_constraint where conname='help_topics_public_classification'),'PUBLIC visibility/classification check exists');
+select ok(exists(select 1 from pg_indexes where indexname='help_content_versions_topic_locale_version_uq'),'topic/locale/version unique index exists');
+select ok(exists(select 1 from pg_trigger where tgname='help_topics_immutable_help_key' and not tgisinternal),'immutable help_key trigger exists');
+select ok(exists(select 1 from pg_constraint where conname='help_content_versions_locale_format'),'locale format constraint exists');
+
 select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: Run the database suite and verify RED**
-
-Run:
+- [ ] **Step 2: Run the suite and verify RED**
 
 ```bash
 supabase start
@@ -143,45 +147,45 @@ supabase db reset
 npm run test:rls
 ```
 
-Expected: existing suites pass; new Help foundation assertions fail because Help schema/permissions do not exist.
+Expected: existing suites pass; the new Help assertions fail because the schema and permissions do not exist.
 
-- [ ] **Step 3: Implement migration `01500`**
+- [ ] **Step 3: Implement `20260903001500_help_content_foundation.sql`**
 
-Implement the enums and tables from the design with these non-negotiable constraints:
+Create the design enums/tables and exact constraints:
 
 ```sql
 alter table public.help_topics
   add constraint help_topics_help_key_format
   check (help_key ~ '^[a-z0-9][a-z0-9_.-]{2,127}$');
 
+alter table public.help_topics
+  add constraint help_topics_public_classification
+  check (visibility <> 'PUBLIC'::help_visibility or classification = 'PUBLIC'::security_classification);
+
 alter table public.help_context_bindings
   add constraint help_binding_has_selector
   check (num_nonnulls(route_pattern, field_key, action_key, workflow_step_key) >= 1);
 
 alter table public.help_content_versions
-  add constraint help_version_locale_format
+  add constraint help_content_versions_locale_format
   check (locale ~ '^[a-z]{2,3}-[A-Z]{2}$');
 
 create unique index help_content_versions_topic_locale_version_uq
   on public.help_content_versions(help_topic_id, locale, version_number);
 ```
 
-Add `help.manage` and `help.publish` using idempotent permission inserts. Add RLS to all three Help tables. Add a trigger that rejects updates to `help_topics.help_key` after insert. Do not grant direct mutation rights to `anon`/`authenticated` yet beyond the minimum existing defaults; Task 4 hardens them explicitly.
+Add an immutable-key trigger named `help_topics_immutable_help_key`. Add `help.manage` and `help.publish` idempotently to `public.permissions`. Enable RLS on all three Help tables.
 
-- [ ] **Step 4: Extend TypeScript `PermissionCode`**
+- [ ] **Step 4: Extend `PermissionCode`**
 
-Add:
+In `lib/rbac/types.ts` add only:
 
 ```ts
   | 'help.manage'
   | 'help.publish'
 ```
 
-to `lib/rbac/types.ts` and no other new permission strings.
-
 - [ ] **Step 5: Run GREEN verification**
-
-Run:
 
 ```bash
 supabase db reset
@@ -189,8 +193,6 @@ npm run test:rls
 npm run typecheck:domain
 npm run typecheck
 ```
-
-Expected: Help foundation contract and all pre-existing database/type tests pass.
 
 - [ ] **Step 6: Commit Task 1**
 
@@ -206,23 +208,21 @@ git commit -m "feat(WASDOK-81): add help content foundation"
 ### Task 2: Audited Help administration lifecycle
 
 **Files:**
-- Create: `supabase/tests/help_lifecycle_search.sql` (initial lifecycle section)
+- Create: `supabase/tests/help_lifecycle_search.sql`
 - Create: `supabase/migrations/20260903001600_help_lifecycle_search.sql`
 
 **Interfaces:**
-- Produces authenticated RPCs:
-  - `admin_create_help_topic(text,text,text,text,text,text,text,text,text)` → `uuid`
-  - `admin_create_help_version(uuid,text,text,text,text,text,text,jsonb,text,text,jsonb,text)` → `uuid`
-  - `admin_create_help_binding(uuid,text,text,text,text,text,integer,text)` → `uuid`
-  - `admin_update_help_binding(uuid,text,text,text,text,text,integer,boolean,text)` → `void`
-  - `admin_publish_help_version(uuid,text)` → `void`
-  - `admin_retire_help_version(uuid,text)` → `void`
-  - `admin_retire_help_topic(uuid,text)` → `void`
-- Every privileged RPC checks `help.manage` or `help.publish` internally, requires a 3–500 character reason, uses `SECURITY DEFINER set search_path=''`, and writes safe immutable audit metadata.
+- `admin_create_help_topic(p_help_key text, p_module_code text, p_content_type text, p_audience text, p_visibility text, p_required_permission_code text, p_required_compartment_code text, p_classification text, p_reason text) returns uuid`
+- `admin_create_help_version(p_topic_id uuid, p_locale text, p_title text, p_summary text, p_body text, p_what_to_enter text, p_why_required text, p_expected_format text, p_suggested_structure jsonb, p_example_text text, p_warning_text text, p_related_links jsonb, p_reason text) returns uuid`
+- `admin_create_help_binding(p_topic_id uuid, p_route_pattern text, p_field_key text, p_action_key text, p_workflow_step_key text, p_display_region text, p_sort_order integer, p_reason text) returns uuid`
+- `admin_update_help_binding(p_binding_id uuid, p_route_pattern text, p_field_key text, p_action_key text, p_workflow_step_key text, p_display_region text, p_sort_order integer, p_is_active boolean, p_reason text) returns void`
+- `admin_publish_help_version(p_version_id uuid, p_reason text) returns void`
+- `admin_retire_help_version(p_version_id uuid, p_reason text) returns void`
+- `admin_retire_help_topic(p_topic_id uuid, p_reason text) returns void`
 
-- [ ] **Step 1: Extend pgTAP with RED lifecycle assertions**
+- [ ] **Step 1: Write RED lifecycle pgTAP assertions**
 
-Use fictional `DEMO WASDOK81` users/roles. Assert:
+Use fictional `DEMO WASDOK81` users/roles. Include:
 
 ```sql
 select has_function('public','admin_create_help_topic',
@@ -230,11 +230,11 @@ select has_function('public','admin_create_help_topic',
 select has_function('public','admin_publish_help_version',array['uuid','text']);
 select throws_ok(
   $$select public.admin_publish_help_version('81000000-0000-0000-0000-000000000201','x')$$,
-  '22023', null, 'short reason rejected'
+  '22023',null,'short reason rejected'
 );
 ```
 
-Also assert unauthorized users get `42501`, `help.manage` cannot publish without `help.publish`, published content is not modified in place, version numbers are monotonic per topic/locale, and `help.version_published` audit metadata does not contain the article body.
+Also assert `help.manage` cannot publish without `help.publish`, unauthorized users get `42501`, version numbers are monotonic per topic/locale, publishing supersedes the prior current published version atomically, and audit events do not store full article bodies.
 
 - [ ] **Step 2: Run RED**
 
@@ -243,31 +243,27 @@ supabase db reset
 npm run test:rls
 ```
 
-Expected: new lifecycle RPC assertions fail only on missing WASDOK-81 behavior.
+- [ ] **Step 3: Implement private helpers and lifecycle RPCs**
 
-- [ ] **Step 3: Implement lifecycle helpers and RPCs**
+Add:
 
-In migration `01600`, add private helpers:
-
-```sql
+```text
 private.require_help_permission(permission_code text)
 private.require_help_reason(reason text)
 private.record_help_change(action text, entity_type text, entity_id uuid,
   reason text, before_data jsonb, after_data jsonb)
 ```
 
-`private.record_help_change` must use the existing immutable `audit_events` boundary and `request_metadata.source='help_content_administration'`. Full `body`, `example_text`, search phrases and secrets must never be copied into audit metadata.
+All RPCs use `SECURITY DEFINER` with `set search_path=''`. `private.record_help_change` writes through the existing immutable audit model with `request_metadata.source='help_content_administration'`; it excludes full `body`, `example_text`, search terms, secrets and tokens.
 
-Publishing must lock the topic/locale version set, validate that the selected version is `DRAFT`, retire/supersede the prior current published version atomically, then mark the selected version `PUBLISHED` with `published_at` / `published_by`.
+Publishing must lock the topic/locale version set, require a DRAFT target, retire/supersede the previously current published version, then mark the target PUBLISHED with `published_at` and `published_by` in the same transaction.
 
-- [ ] **Step 4: Verify RED→GREEN lifecycle**
+- [ ] **Step 4: Run GREEN**
 
 ```bash
 supabase db reset
 npm run test:rls
 ```
-
-Expected: all lifecycle assertions pass and existing RLS tests remain green.
 
 - [ ] **Step 5: Commit Task 2**
 
@@ -286,24 +282,14 @@ git commit -m "feat(WASDOK-81): add audited help publishing lifecycle"
 - Modify: `supabase/migrations/20260903001600_help_lifecycle_search.sql`
 
 **Interfaces:**
-- Produces read RPCs:
-  - `get_context_help(text,text,text,text,text,boolean)` → authorized published topic rows.
-  - `search_help(text,text,text,boolean,integer)` → authorized ranked results.
-  - `get_help_article(text,text,boolean)` → one authorized article row or zero rows.
-  - `get_public_context_help(text,text,text,text,text)` → PUBLIC-only published rows with no internal authorization leakage.
-- Locale fallback is requested locale → `en-PG`; fallback never bypasses the topic’s visibility/permission/compartment checks.
+- `get_context_help(p_route text, p_field_key text, p_action_key text, p_workflow_step_key text, p_locale text, p_training_mode boolean)` returns authorized published Help rows.
+- `search_help(p_query text, p_locale text, p_module_code text, p_training_mode boolean, p_limit integer)` returns authorized ranked results.
+- `get_help_article(p_help_key text, p_locale text, p_training_mode boolean)` returns one authorized article or zero rows.
+- `get_public_context_help(p_route text, p_field_key text, p_action_key text, p_workflow_step_key text, p_locale text)` returns PUBLIC-only published rows.
 
-- [ ] **Step 1: Add failing search/disclosure tests**
+- [ ] **Step 1: Add RED discovery/search tests**
 
-Create DEMO topics for:
-- authenticated general guidance;
-- `admin.manage_roles` restricted guidance;
-- a `RESTRICTED`/compartment-bound article;
-- training-only detailed help;
-- a PUBLIC complaint-intake field hint;
-- English + Tok Pisin versions.
-
-Assert an unauthorized user cannot infer restricted content through title, snippet, count or direct `help_key` lookup. Assert an anonymous caller sees only the explicit PUBLIC topic. Assert `tpi-PG` falls back to `en-PG` only after topic authorization passes.
+Create DEMO topics for authenticated general guidance, `admin.manage_roles` restricted guidance, a compartment-restricted article, training-only help, a PUBLIC complaint-intake hint, and English/Tok Pisin versions. Assert unauthorized users cannot infer restricted titles/snippets/counts/direct keys; anonymous callers see only explicit PUBLIC content; and `tpi-PG → en-PG` fallback occurs only after authorization passes.
 
 - [ ] **Step 2: Run RED**
 
@@ -312,25 +298,22 @@ supabase db reset
 npm run test:rls
 ```
 
-Expected: discovery/search assertions fail because read RPCs do not exist.
+- [ ] **Step 3: Implement discovery and search**
 
-- [ ] **Step 3: Implement authorization/discovery helpers**
-
-Add private functions that evaluate:
+Enforce this order server-side/database-side:
 
 ```text
 active topic
-+ current published version
-+ visibility mode
-+ authenticated/public context
-+ required permission via public.has_permission()
-+ required compartment via public.has_compartment()
-+ classification via existing record access primitives
-+ audience/training flag
-+ locale selection/fallback
+→ visibility/request context
+→ required permission
+→ required compartment/classification
+→ audience/training eligibility
+→ current published version
+→ requested locale or authorized en-PG fallback
+→ ranking/snippet generation
 ```
 
-Search must perform authorization before returning title/snippet data. Do not expose unauthorized counts. Cap `p_limit` to a safe maximum (50) and trim search text; empty/whitespace search returns no ranked results rather than a global dump.
+Search must not reveal unauthorized counts. Cap `p_limit` at 50. Empty/whitespace query returns no ranked results. Public read function refuses any topic that is not both `visibility='PUBLIC'` and `classification='PUBLIC'`.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -338,8 +321,6 @@ Search must perform authorization before returning title/snippet data. Do not ex
 supabase db reset
 npm run test:rls
 ```
-
-Expected: all Help lifecycle/search/public/locale assertions and all pre-existing suites pass.
 
 - [ ] **Step 5: Commit Task 3**
 
@@ -358,21 +339,13 @@ git commit -m "feat(WASDOK-81): add authorized help discovery and search"
 - Create: `supabase/migrations/20260903001700_help_direct_write_boundary.sql`
 
 **Interfaces:**
-- Authenticated application users mutate Help administration state only through approved RPCs.
-- `anon` has execute only on the PUBLIC-safe read RPC required for complaint-intake Help.
-- `authenticated` has execute on authorized Help read RPCs and the admin RPCs; admin RPCs remain internally permission-checked.
+- Authenticated users mutate Help state only through approved RPCs.
+- `anon` receives EXECUTE only on `get_public_context_help`.
+- `authenticated` receives EXECUTE on authorized Help read RPCs and admin RPCs; admin RPCs remain internally permission checked.
 
 - [ ] **Step 1: Write RED direct-write tests**
 
-Follow the existing `pg_temp.try_direct_write` pattern. Under `set local role authenticated`, prove direct INSERT/UPDATE/DELETE cannot change:
-
-```text
-help_topics
-help_context_bindings
-help_content_versions
-```
-
-Also prove published version rows and `help_key` cannot be destructively rewritten through ordinary authenticated DML.
+Follow the existing `pg_temp.try_direct_write` pattern and prove direct INSERT/UPDATE/DELETE cannot change `help_topics`, `help_context_bindings`, or `help_content_versions` under `set local role authenticated`.
 
 - [ ] **Step 2: Run RED**
 
@@ -381,20 +354,16 @@ supabase db reset
 npm run test:rls
 ```
 
-Expected: at least one direct-write assertion fails before `01700` hardening.
+- [ ] **Step 3: Implement `01700`**
 
-- [ ] **Step 3: Implement migration `01700`**
+Revoke INSERT/UPDATE/DELETE on all Help tables from `anon` and `authenticated`. Revoke default PUBLIC function execution and grant only intended role/function combinations. Reassert immutable `help_key` and published-history protections at the final boundary.
 
-Explicitly revoke INSERT/UPDATE/DELETE on Help tables from `anon` and `authenticated`. Revoke all public EXECUTE defaults on Help admin functions, then grant only the intended roles. Re-assert the stable-key and published-history guards at the final migration boundary.
-
-- [ ] **Step 4: Run GREEN + full DB reset**
+- [ ] **Step 4: Run GREEN**
 
 ```bash
 supabase db reset
 npm run test:rls
 ```
-
-Expected: direct-write denial and all prior suites pass.
 
 - [ ] **Step 5: Commit Task 4**
 
@@ -406,7 +375,7 @@ git commit -m "feat(WASDOK-81): harden help administration write boundary"
 
 ---
 
-### Task 5: Help domain types, validation, query and mutation adapters
+### Task 5: Help domain types, validation, queries and mutations
 
 **Files:**
 - Create: `lib/help/types.ts`
@@ -422,8 +391,6 @@ git commit -m "feat(WASDOK-81): harden help administration write boundary"
 - Create: `tests/help/security-boundary.test.ts`
 
 **Interfaces:**
-
-Define in `lib/help/types.ts`:
 
 ```ts
 export type HelpLocale = 'en-PG' | 'tpi-PG';
@@ -454,7 +421,7 @@ export interface HelpTopicView {
 }
 ```
 
-Define query signatures:
+Query signatures:
 
 ```ts
 getContextHelp(input: ContextHelpInput): Promise<HelpTopicView[]>
@@ -463,33 +430,28 @@ getHelpArticle(helpKey: string, locale: HelpLocale, trainingMode: boolean): Prom
 getPublicContextHelp(input: PublicContextHelpInput): Promise<HelpTopicView[]>
 ```
 
-Define mutation adapters for all Task 2 admin RPCs and map `42501`, `22023`, `23505`, `23514` to safe user-facing messages without returning raw PostgreSQL text.
+- [ ] **Step 1: Write RED Vitest contracts**
 
-- [ ] **Step 1: Write failing Vitest contracts**
-
-Tests must prove key regex, locale validation, max search length, bounded suggested structure, safe HTTPS/internal links, reason 3–500, safe SQLSTATE mapping, authenticated server client usage, and no service-role import in `lib/help` user-facing/query code.
+Test help-key regex, locale validation, search length, bounded `suggestedStructure`, safe internal/HTTPS links, reason 3–500, safe SQLSTATE mapping, authenticated server client usage and absence of service-role imports in client-facing/query code.
 
 - [ ] **Step 2: Run RED**
 
 ```bash
-npx vitest run tests/help/validation.test.ts tests/help/queries.test.ts tests/help/mutations.test.ts tests/help/security-boundary.test.ts
+npx vitest run tests/help/validation.test.ts tests/help/queries.test.ts \
+  tests/help/mutations.test.ts tests/help/security-boundary.test.ts
 ```
 
-Expected: missing `lib/help` modules.
+- [ ] **Step 3: Implement the domain layer**
 
-- [ ] **Step 3: Implement minimal domain layer**
+Use `createServerSupabaseClient()` for authenticated queries/mutations. `lib/help/public.ts` calls only the PUBLIC-safe RPC through the existing anon/public client pattern; it never imports the service client. Mutation adapters map `42501`, `22023`, `23505`, and `23514` to safe messages without returning raw PostgreSQL details.
 
-Use `createServerSupabaseClient()` for authenticated Help query/mutation adapters. `lib/help/public.ts` may use only the existing public/anon Supabase path appropriate to public complaint intake; it must call only `get_public_context_help` and never construct a service client.
-
-`training.ts` returns presentation intent only, e.g.:
+`lib/help/training.ts` remains presentation-only:
 
 ```ts
-export function resolveTrainingHelpMode(roleTypes: string[]): boolean {
+export function resolveTrainingHelpMode(roleTypes: readonly string[]): boolean {
   return roleTypes.includes('training');
 }
 ```
-
-It must not return permissions or alter authorization inputs.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -517,17 +479,16 @@ git commit -m "feat(WASDOK-81): add help domain adapters"
 - Create: `components/help/help-search-form.tsx`
 - Create: `components/help/help-panel-content.tsx`
 - Create: `tests/help/routes.test.ts`
-- Modify: `lib/rbac/navigation.ts`
 - Modify: `scripts/routes-smoke.mjs`
 
 **Interfaces:**
-- `/dashboard/help?q=<text>&module=<optional>&locale=<optional>` renders only results from `searchHelp`.
-- `/dashboard/help/[helpKey]` calls `getHelpArticle` and `notFound()` when unauthorized/missing.
-- Help Centre navigation must not require users to possess `help.manage`; ordinary authenticated access uses the already-authenticated Dashboard boundary. If current navigation resolver requires a permission code for every item, add Help as a top-bar route instead of inventing a blanket `help.view` permission.
+- `/dashboard/help?q=<text>&module=<optional>&locale=<optional>` uses `searchHelp` only.
+- `/dashboard/help/[helpKey]` uses `getHelpArticle` and `notFound()` when unauthorized/missing.
+- Ordinary Help Centre access relies on the authenticated Dashboard layout; do not add a generic `help.view` permission.
 
-- [ ] **Step 1: Write failing route/source tests**
+- [ ] **Step 1: Write RED route tests**
 
-Assert real route files exist, search parameters are consumed server-side, article route fails closed via `notFound`, and no raw database query is embedded in UI components.
+Assert route files exist, `searchParams` are consumed server-side, direct article access fails closed, and UI files contain no raw SQL/Supabase table queries.
 
 - [ ] **Step 2: Run RED**
 
@@ -535,13 +496,13 @@ Assert real route files exist, search parameters are consumed server-side, artic
 npx vitest run tests/help/routes.test.ts
 ```
 
-- [ ] **Step 3: Implement Help Centre pages**
+- [ ] **Step 3: Implement Help Centre and article pages**
 
-Use server-rendered result lists with safe excerpts. Search form submits GET query parameters. Empty search shows module browsing/recent approved topics through an authorized query—not all protected content.
+Search is GET-based and returns authorized safe excerpts. Empty search renders authorized module/recent-topic browsing from a server query rather than dumping all topics.
 
-- [ ] **Step 4: Extend route smoke coverage**
+- [ ] **Step 4: Extend route smoke checks**
 
-Add `/dashboard/help` and representative article/admin paths to `scripts/routes-smoke.mjs` with their expected protected-route handling.
+Add `/dashboard/help`, `/dashboard/help/<demo-key>`, and `/dashboard/help/admin` protected-route expectations to `scripts/routes-smoke.mjs`.
 
 - [ ] **Step 5: Run GREEN**
 
@@ -555,8 +516,7 @@ npm run typecheck
 
 ```bash
 git add app/dashboard/help components/help/help-search-form.tsx \
-  components/help/help-panel-content.tsx tests/help/routes.test.ts \
-  lib/rbac/navigation.ts scripts/routes-smoke.mjs
+  components/help/help-panel-content.tsx tests/help/routes.test.ts scripts/routes-smoke.mjs
 git commit -m "feat(WASDOK-81): add searchable help centre"
 ```
 
@@ -567,17 +527,16 @@ git commit -m "feat(WASDOK-81): add searchable help centre"
 **Files:**
 - Create: `components/help/help-drawer.tsx`
 - Modify: `components/app-shell.tsx`
-- Modify: `app/dashboard/layout.tsx` only if needed to pass training-mode/user context
-- Create/Modify: `tests/help/components.test.tsx`
+- Modify: `tests/help/components.test.tsx`
 
 **Interfaces:**
-- `HelpDrawer` uses `usePathname()` to identify the current route and calls `getContextHelpAction({ route, locale: 'en-PG', trainingMode })`.
-- The Help button is keyboard accessible, uses `aria-expanded`/`aria-controls`, and drawer close restores sensible focus.
-- Help failures display “Guidance is temporarily unavailable.” and never block `children` or sign-out/navigation.
+- `HelpDrawer` uses `usePathname()` and calls `getContextHelpAction({ route, locale: 'en-PG' })`.
+- The server action resolves current-user training mode internally before calling `getContextHelp`; no role/permission list is trusted from the browser.
+- The Help button exposes `aria-expanded` and `aria-controls`.
 
 - [ ] **Step 1: Write RED component tests**
 
-Test closed/open state, accessible button name, contextual action call, safe failure state, and zero impact on main application rendering.
+Test closed/open state, keyboard-accessible Help button, current-route lookup, safe failure message and uninterrupted main application rendering.
 
 - [ ] **Step 2: Run RED**
 
@@ -585,11 +544,11 @@ Test closed/open state, accessible button name, contextual action call, safe fai
 npx vitest run tests/help/components.test.tsx
 ```
 
-- [ ] **Step 3: Implement HelpDrawer and AppShell integration**
+- [ ] **Step 3: Implement HelpDrawer/AppShell integration**
 
-Keep data fetching behind the authenticated server action; never pass Supabase clients into the browser component.
+Help failure renders `Guidance is temporarily unavailable.` and never blocks `children`, navigation or sign-out. No Supabase client is passed into the browser component.
 
-- [ ] **Step 4: Run GREEN + static boundary**
+- [ ] **Step 4: Run GREEN**
 
 ```bash
 npx vitest run tests/help/components.test.tsx
@@ -601,26 +560,24 @@ npm run typecheck
 
 ```bash
 git add components/help/help-drawer.tsx components/app-shell.tsx \
-  app/dashboard/layout.tsx tests/help/components.test.tsx
+  tests/help/components.test.tsx
 git commit -m "feat(WASDOK-81): add contextual help drawer"
 ```
 
 ---
 
-### Task 8: Field Help and Guided Entry Prompts with complaint-intake migration
+### Task 8: Field Help and Guided Entry Prompts for complaint intake
 
 **Files:**
 - Create: `components/help/help-field-tip.tsx`
 - Create: `components/help/guided-entry-prompt.tsx`
 - Modify: `components/complaints/intake-form.tsx`
 - Modify: `app/dashboard/complaints/new/page.tsx`
-- Modify: existing public complaint-intake page that renders `ComplaintIntakeForm`
-- Modify: `tests/help/components.test.tsx`
+- Modify: `app/complaints/intake/page.tsx`
 - Create: `tests/help/complaint-intake-integration.test.tsx`
+- Modify: `tests/help/components.test.tsx`
 
 **Interfaces:**
-
-Add a serializable optional prop to the complaint form:
 
 ```ts
 export interface ComplaintIntakeHelpBundle {
@@ -632,16 +589,11 @@ export interface ComplaintIntakeHelpBundle {
 }
 ```
 
-`ComplaintIntakeForm` must preserve existing static hints as fallback until a central published topic is supplied.
+`ComplaintIntakeForm` receives optional `help?: ComplaintIntakeHelpBundle` and retains its current static hints as fallback.
 
 - [ ] **Step 1: Write RED integration tests**
 
-Prove:
-- central help replaces only the corresponding optional hint presentation;
-- fallback static hint remains when central Help is unavailable;
-- allegation Guided Entry Prompt renders an ordered structure and DEMO example;
-- mandatory privacy notice/acknowledgement copy is unchanged;
-- public form receives only PUBLIC-safe help.
+Prove central Help is shown when supplied, static hint fallback remains when central Help is unavailable, allegation prompt renders ordered guidance/DEMO example, mandatory privacy copy is unchanged, and the public form cannot receive non-PUBLIC guidance.
 
 - [ ] **Step 2: Run RED**
 
@@ -649,13 +601,13 @@ Prove:
 npx vitest run tests/help/complaint-intake-integration.test.tsx
 ```
 
-- [ ] **Step 3: Implement field and prompt components**
+- [ ] **Step 3: Implement accessible field/prompt components**
 
-`HelpFieldTip` must use a button/popover/details-style accessible interaction, not hover-only content. `GuidedEntryPrompt` renders human-authored structure/example only; it never generates or writes the user’s field value.
+Use button/details/popover semantics; never hover-only Help. `GuidedEntryPrompt` displays approved content and never writes generated text into the form field.
 
-- [ ] **Step 4: Wire authenticated and public Help bundles**
+- [ ] **Step 4: Wire authenticated and public bundles**
 
-Authenticated assisted intake uses `getContextHelp`; public complaint intake uses `getPublicContextHelp`. Do not share an authenticated data path into the public page.
+`app/dashboard/complaints/new/page.tsx` uses authenticated Help queries. `app/complaints/intake/page.tsx` uses only `getPublicContextHelp` through `lib/help/public.ts`.
 
 - [ ] **Step 5: Run GREEN**
 
@@ -670,7 +622,7 @@ npm run typecheck
 ```bash
 git add components/help/help-field-tip.tsx components/help/guided-entry-prompt.tsx \
   components/complaints/intake-form.tsx app/dashboard/complaints/new/page.tsx \
-  tests/help
+  app/complaints/intake/page.tsx tests/help
 git commit -m "feat(WASDOK-81): add contextual field guidance and prompts"
 ```
 
@@ -687,18 +639,18 @@ git commit -m "feat(WASDOK-81): add contextual field guidance and prompts"
 - Create: `components/help/admin/help-version-form.tsx`
 - Create: `components/help/admin/help-binding-form.tsx`
 - Create: `components/help/admin/help-version-history.tsx`
+- Modify: `app/dashboard/help/page.tsx`
 - Modify: `tests/help/routes.test.ts`
-- Modify/Create: `tests/help/mutations.test.ts`
+- Modify: `tests/help/mutations.test.ts`
 
 **Interfaces:**
-- Every admin page rechecks `help.manage` or `help.publish` server-side before rendering/mutating.
-- `help.manage`: topic creation, draft version creation, binding create/update/retire.
-- `help.publish`: publish/retire official versions/topics.
-- Forms contain no actor IDs, `published_by`, audit actor fields or service credentials; the database derives actor identity from the session.
+- Admin pages call `has_permission('help.manage')` and/or `has_permission('help.publish')` server-side before rendering.
+- Help Centre page shows `Manage Help content` only to an authorized Help administrator; this is not an authorization boundary.
+- Forms contain no actor IDs, `published_by`, audit actor fields or service credentials.
 
 - [ ] **Step 1: Write RED admin route/action tests**
 
-Assert route files, `use server` actions, required reason capture, permission checks, and no browser-authoritative actor/audit fields.
+Assert `use server` actions, server permission checks, required reason capture, no browser-authoritative actor fields, and no in-place editing control for PUBLISHED versions.
 
 - [ ] **Step 2: Run RED**
 
@@ -706,15 +658,11 @@ Assert route files, `use server` actions, required reason capture, permission ch
 npx vitest run tests/help/routes.test.ts tests/help/mutations.test.ts
 ```
 
-- [ ] **Step 3: Implement protected administration UI**
+- [ ] **Step 3: Implement administration UI**
 
-Topic page shows stable key, metadata, active bindings, locale/version history and explicit Publish/Retire actions. Editing a published version always creates a new draft; do not expose an in-place edit button for a PUBLISHED row.
+Topic detail shows stable key, metadata, bindings, locale/version history and explicit Publish/Retire actions. Editing official content creates a new DRAFT version.
 
-- [ ] **Step 4: Add navigation for authorized Help administrators**
-
-Add a Help Administration link only where `help.manage`/`help.publish` authorization supports it. Ordinary Help Centre access remains separate.
-
-- [ ] **Step 5: Run GREEN**
+- [ ] **Step 4: Run GREEN**
 
 ```bash
 npx vitest run tests/help
@@ -723,100 +671,38 @@ npm run typecheck
 npm run lint
 ```
 
-- [ ] **Step 6: Commit Task 9**
+- [ ] **Step 5: Commit Task 9**
 
 ```bash
-git add app/dashboard/help/admin components/help/admin tests/help \
-  lib/rbac/navigation.ts
+git add app/dashboard/help components/help/admin tests/help
 git commit -m "feat(WASDOK-81): add help content administration"
 ```
 
 ---
 
-### Task 10: Training presentation, locale behavior and seed/demo content
+### Task 10: Training/locale behavior, fictional seed content and full Help E2E
 
 **Files:**
 - Modify: `lib/help/training.ts`
 - Modify: `lib/help/context.ts`
 - Modify: `supabase/seed.sql`
 - Create: `tests/help/training-locale.test.ts`
+- Create: `tests/help/e2e.test.ts`
 
 **Interfaces:**
-- Training mode can select additional `TRAINING` audience topics only after normal authorization for the topic passes.
-- Locale resolver returns `{ requestedLocale, resolvedLocale, usedFallbackLocale }` and defaults to `en-PG`.
-- Seed content creates only fictional Help examples/topics, no production user assignment or real protected content.
+- Training mode adds only authorized `TRAINING` audience guidance.
+- Locale resolver returns `{ requestedLocale, resolvedLocale, usedFallbackLocale }`.
+- E2E is gated by `WASDOK81_HELP_E2E=true` and uses fictional `DEMO WASDOK81` fixtures.
 
-- [ ] **Step 1: Write RED tests**
+- [ ] **Step 1: Write RED training/locale tests and E2E contract**
 
-Test training role detection, no authorization widening, `tpi-PG → en-PG` fallback marker, and no fallback to an unauthorized English topic.
+The E2E contract must require representative seeded Help topics that do not exist before this task, including `complaints.intake.allegation`, a PUBLIC complaint-intake hint, and a TRAINING walkthrough. This guarantees the targeted run is RED for the intended missing integration rather than fixture failure.
 
 - [ ] **Step 2: Run RED**
 
 ```bash
 npx vitest run tests/help/training-locale.test.ts
-```
 
-- [ ] **Step 3: Add fictional seed topics**
-
-Seed representative `DEMO WASDOK81` Help topics for:
-- complaint allegation FIELD_HINT/ENTRY_PROMPT;
-- Access Control role administration ARTICLE;
-- PUBLIC complaint-intake hint;
-- one TRAINING-only walkthrough.
-
-Do not seed production user-role assignments for Help administration.
-
-- [ ] **Step 4: Run GREEN and reset**
-
-```bash
-supabase db reset
-npm run test:rls
-npx vitest run tests/help/training-locale.test.ts
-```
-
-- [ ] **Step 5: Commit Task 10**
-
-```bash
-git add lib/help/training.ts lib/help/context.ts supabase/seed.sql \
-  tests/help/training-locale.test.ts
-git commit -m "feat(WASDOK-81): add training and locale help behavior"
-```
-
----
-
-### Task 11: WASDOK-81 end-to-end, CI integration and hosted-deployment runbook
-
-**Files:**
-- Create: `tests/help/e2e.test.ts`
-- Modify: `.github/workflows/ci.yml`
-- Modify: `scripts/routes-smoke.mjs`
-- Modify: `scripts/static-security.mjs` if necessary
-- Create: `docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md`
-
-**Interfaces:**
-- E2E enabled only with `WASDOK81_HELP_E2E=true`.
-- Fixtures use reserved fictional UUIDs and `DEMO WASDOK81` labels.
-- Deployment order is strictly `01500 → 01600 → 01700`.
-
-- [ ] **Step 1: Write RED E2E**
-
-Using local Supabase and synthetic users, prove:
-
-```text
-help.manage administrator creates topic + draft + binding
-help.publish administrator publishes it
-authorized user sees it contextually and in search
-unauthorized user cannot discover title/snippet/direct key
-PUBLIC caller sees only explicitly PUBLIC topic
-new version supersedes prior published version without deleting history
-retirement removes ordinary visibility
-training mode adds only authorized training guidance
-help administration audit actions exist with safe metadata
-```
-
-- [ ] **Step 2: Run RED against pre-E2E CI state**
-
-```bash
 eval "$(supabase status -o env)"
 export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
@@ -825,11 +711,75 @@ export WASDOK81_HELP_E2E="true"
 npx vitest run tests/help/e2e.test.ts
 ```
 
-Expected: if implementation is complete, this may already pass; to preserve valid TDD evidence, introduce the E2E contract before the final integration behavior it uniquely tests (for example the last missing CI/public/training integration) so a targeted RED is observed before GREEN.
+Expected: missing representative `DEMO WASDOK81` Help seed/integration assertions fail while database connectivity succeeds.
 
-- [ ] **Step 3: Add CI stage**
+- [ ] **Step 3: Add fictional Help seed topics and finalize locale/training resolver**
 
-After `supabase db reset` + pgTAP and before final static/type/build checks, add:
+Seed only fictional Help content; do not seed a production Help administrator or grant production users `help.manage`/`help.publish`.
+
+- [ ] **Step 4: Run GREEN**
+
+```bash
+supabase db reset
+npm run test:rls
+npx vitest run tests/help/training-locale.test.ts
+
+eval "$(supabase status -o env)"
+export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+export WASDOK81_HELP_E2E="true"
+npx vitest run tests/help/e2e.test.ts
+```
+
+E2E must prove create/draft/bind/publish, authorized contextual/search visibility, unauthorized non-discovery by title/snippet/direct key, PUBLIC-only anonymous help, superseding version history, retirement, training-detail without authorization widening, and safe audit evidence.
+
+- [ ] **Step 5: Commit Task 10**
+
+```bash
+git add lib/help/training.ts lib/help/context.ts supabase/seed.sql \
+  tests/help/training-locale.test.ts tests/help/e2e.test.ts
+git commit -m "test(WASDOK-81): add training locale and help end-to-end"
+```
+
+---
+
+### Task 11: CI contract, static security enforcement and deployment runbook
+
+**Files:**
+- Create: `tests/help/ci-contract.test.ts`
+- Modify: `.github/workflows/ci.yml`
+- Modify: `scripts/static-security.mjs`
+- Create: `docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md`
+
+**Interfaces:**
+- CI stage is named `Online Help end-to-end (WASDOK-81)`.
+- Deployment order is strictly `01500 → 01600 → 01700`.
+
+- [ ] **Step 1: Write RED CI/runbook contract test**
+
+Test source text for:
+
+```ts
+expect(ci).toContain('Online Help end-to-end (WASDOK-81)');
+expect(ci).toContain('WASDOK81_HELP_E2E');
+expect(runbook).toContain('20260903001500');
+expect(runbook).toContain('20260903001600');
+expect(runbook).toContain('20260903001700');
+expect(runbook).toContain('BEGIN');
+expect(runbook).toContain('ROLLBACK');
+expect(runbook).toContain('DEMO WASDOK81');
+```
+
+- [ ] **Step 2: Run RED**
+
+```bash
+npx vitest run tests/help/ci-contract.test.ts
+```
+
+- [ ] **Step 3: Add CI stage and static boundary**
+
+Add after local pgTAP/reset stages and before final type/static/build gates:
 
 ```yaml
 - name: Online Help end-to-end (WASDOK-81)
@@ -842,29 +792,56 @@ After `supabase db reset` + pgTAP and before final static/type/build checks, add
     npx vitest run tests/help/e2e.test.ts
 ```
 
-If prior E2E suites mutate state that could affect Help invariants, add an explicit `supabase db reset` immediately before the WASDOK-81 stage rather than relying on accidental fixture isolation.
+If prior E2E state can affect Help invariants, add `supabase db reset` immediately before this stage. Extend `scripts/static-security.mjs` so client-facing `components/help/**` and public Help code fail verification if they reference `SUPABASE_SERVICE_ROLE_KEY`, `service_role`, or import the privileged service client.
 
 - [ ] **Step 4: Create hosted deployment runbook**
 
-`docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md` must state:
+The runbook must state:
 
 ```text
-Target: OCPNG Supabase project only, never DLPP/other projects.
-Migrations: 20260903001500, 20260903001600, 20260903001700 in strict order.
-Use Supabase migration mechanism so hosted migration history is authoritative.
+Target only OCPNG Supabase project; never DLPP/other projects.
+Apply 20260903001500 → 20260903001600 → 20260903001700 using the migration mechanism.
 No unapproved fourth migration or ad-hoc production DDL.
-Post-deploy verifier uses BEGIN ... ROLLBACK and only DEMO WASDOK81 fixtures.
-Verify no DEMO residue after rollback.
-Verify migration history, authorized search, public-only disclosure, admin audit, and direct-write denial.
+Hosted verifier uses BEGIN ... ROLLBACK and only DEMO WASDOK81 fixtures.
+Verify migration history, authorized search, PUBLIC-only disclosure, audit events, direct-write denial, and zero DEMO residue.
 ```
 
-- [ ] **Step 5: Run full local verification**
+- [ ] **Step 5: Run GREEN**
+
+```bash
+npx vitest run tests/help/ci-contract.test.ts
+npm run verify:static
+npm run typecheck
+```
+
+- [ ] **Step 6: Commit Task 11**
+
+```bash
+git add tests/help/ci-contract.test.ts .github/workflows/ci.yml \
+  scripts/static-security.mjs docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md
+git commit -m "test(WASDOK-81): add help CI and deployment gates"
+```
+
+---
+
+### Task 12: Full verification, review and merge preparation
+
+**Files:**
+- Review all WASDOK-81 changed files.
+- Update Jira WASDOK-81 evidence only after exact-head verification.
+
+**Interfaces:**
+- Merge approval remains a separate explicit user gate.
+- Hosted deployment remains a later separate explicit user gate.
+
+- [ ] **Step 1: Run the full verification suite on the exact final head**
 
 ```bash
 npm run test:run
 npm run test:auth-security
 supabase db reset
 npm run test:rls
+
 eval "$(supabase status -o env)"
 export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
@@ -873,9 +850,15 @@ export WASDOK67_COMPLAINT_E2E="true"
 npx vitest run tests/complaints/intake-e2e.test.ts
 export WASDOK78_ACCESS_E2E="true"
 npx vitest run tests/access-control/e2e.test.ts
+
 supabase db reset
+eval "$(supabase status -o env)"
+export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
 export WASDOK81_HELP_E2E="true"
 npx vitest run tests/help/e2e.test.ts
+
 npm run typecheck:domain
 npm run test:domain
 npm run test:schema
@@ -886,87 +869,62 @@ npm run lint
 npm run test:auth-build
 ```
 
-Expected: zero test failures, zero TypeScript errors, zero lint errors, successful production build/security scan.
+Expected: zero test failures, zero TypeScript errors, zero lint errors, successful build/browser credential scan/HTTP auth boundary.
 
-- [ ] **Step 6: Commit Task 11**
+- [ ] **Step 2: Perform security/diff review**
 
-```bash
-git add tests/help/e2e.test.ts .github/workflows/ci.yml scripts \
-  docs/deployment/WASDOK-81-HOSTED-DEPLOYMENT.md
-git commit -m "test(WASDOK-81): add help end-to-end and deployment gates"
-```
-
----
-
-### Task 12: Merge-preparation security review and evidence reconciliation
-
-**Files:**
-- Review all WASDOK-81 changed files.
-- Update: `docs/superpowers/specs/2026-09-02-wasdok-81-online-help-user-guidance-design.md` only if implementation-compatible clarifications are required.
-- Update: `docs/superpowers/plans/2026-09-03-wasdok-81-online-help-user-guidance.md` only to reconcile executed migration/runbook facts; never rewrite history to hide deviations.
-- Jira: add a WASDOK-81 evidence comment; do not transition to Done.
-
-**Interfaces:**
-- No code or schema acceptance claim without exact-head CI evidence.
-- Merge approval remains a separate explicit user gate.
-- Hosted deployment approval remains a separate explicit user gate after merge and post-merge CI.
-
-- [ ] **Step 1: Review the final diff against all 16 acceptance criteria in the design spec**
-
-Create a checklist mapping each criterion to tests/files. Treat any missing negative-access/search-disclosure test as a blocker.
-
-- [ ] **Step 2: Verify client/security boundaries**
-
-Search the final diff for:
+Search final changed files for:
 
 ```text
 SUPABASE_SERVICE_ROLE_KEY
 service_role
 createServiceSupabaseClient
-raw search logging
+raw Help search logging
 dangerouslySetInnerHTML
 ```
 
-Any client-facing secret/service reference is a blocker. `dangerouslySetInnerHTML` is prohibited unless an explicitly reviewed sanitizer/allowlist contract is present and tested; structured plain-text rendering is preferred for Release 1.
+Any client-facing service credential reference is a blocker. Prefer structured text rendering; if `dangerouslySetInnerHTML` exists, it is a blocker unless an explicit allowlist sanitizer and regression tests are included and reviewed.
 
-- [ ] **Step 3: Verify exact-head CI and Netlify preview**
+- [ ] **Step 3: Map all 16 design acceptance criteria to evidence**
 
-Do not rely on prior task runs. Require the exact final commit SHA to have successful OCPNG Release 1 CI and successful deploy-preview status before presenting merge approval.
+Document which file/test/CI step proves each criterion. Missing negative-access or search-disclosure evidence is a blocker.
 
-- [ ] **Step 4: Record Jira evidence**
+- [ ] **Step 4: Open the PR as Draft and require exact-head CI**
 
-Comment on WASDOK-81 with branch, final head SHA, PR number, migration list, test counts, CI run, known non-blocking limitations and explicit statement that no hosted production deployment has occurred.
+Target `feat/wasdok360-release1`. PR body must list migrations `01500–01700`, state that hosted Supabase has not been changed, and preserve separate merge/deployment gates.
 
-- [ ] **Step 5: Stop at merge gate**
+- [ ] **Step 5: Record Jira evidence after CI is green**
 
-Present the exact user phrase:
+Comment on WASDOK-81 with branch, final head SHA, PR number, migration list, test/CI evidence, known non-blocking limitations and explicit statement that no hosted deployment occurred.
+
+- [ ] **Step 6: Stop at the merge gate**
+
+Present exactly:
 
 ```text
 Approve WASDOK-81 PR #<number> merge.
 ```
 
-Do not merge until that explicit approval is received.
+Do not merge until that approval is received.
 
 ---
 
 ## Post-Merge / Hosted Deployment Gates
 
-These are execution gates, not implementation tasks to perform without approval.
-
-1. After explicit merge approval, merge only the reviewed PR with expected-head-SHA protection.
+1. After explicit merge approval, merge only the reviewed PR using expected-head-SHA protection.
 2. Verify post-merge CI on the exact release-branch merge commit.
-3. Then request: `Approve WASDOK-81 hosted Supabase deployment of migrations 01500–01700.`
+3. Request: `Approve WASDOK-81 hosted Supabase deployment of migrations 01500–01700.`
 4. Apply only `01500 → 01600 → 01700` to the OCPNG Supabase project using the migration mechanism.
-5. Run rollback-safe `DEMO WASDOK81` hosted verification and confirm no residue.
-6. Re-run Supabase Security Advisor; classify new findings before closure.
-7. Conduct closure review against Jira acceptance criteria and design spec.
+5. Run rollback-safe `DEMO WASDOK81` hosted verification and confirm zero residue.
+6. Re-run Supabase Security Advisor and classify findings before closure.
+7. Conduct closure review against Jira and design acceptance criteria.
 8. Only when clean, request: `Approve WASDOK-81 closure.`
 
 ## Execution Notes
 
-- Use strict RED→GREEN TDD for every task. A failing test must fail for the intended missing behavior, not because of fixture/configuration errors.
+- Use strict RED→GREEN TDD for every implementation task; a RED must fail for the intended missing behavior rather than a broken fixture/configuration.
 - Preserve existing WASDOK-67 and WASDOK-78 CI coverage; WASDOK-81 must not weaken or skip prior security gates.
-- Keep files focused. Do not combine Help query, mutation, UI and validation responsibilities into one large module.
+- Keep Help query, mutation, UI and validation responsibilities in separate focused files.
 - Do not introduce an AI SDK/model dependency in WASDOK-81.
-- Do not create a generic `help.view` permission merely to make navigation convenient; ordinary Help discovery follows existing authorized application context.
-- No production migration, user mutation or Help publication is authorized by this plan document.
+- Do not create a generic `help.view` permission merely for navigation convenience.
+- No production migration, production user mutation or production Help publication is authorized by this plan.

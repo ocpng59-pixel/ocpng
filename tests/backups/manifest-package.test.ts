@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readFile as readFileBytes, rm, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -9,6 +10,15 @@ import {
   type RecoveryManifest,
 } from '@/lib/operations/backups/manifest';
 import {
+  packageEncryptedArchive,
+  verifyEncryptedArchive,
+} from '@/lib/operations/backups/package';
+import { ResolverArchiveKeyProvider } from '@/lib/operations/backups/providers/archive-key';
+import {
+  SupabaseArchiveStore,
+  type SupabaseArchiveStorageClientLike,
+} from '@/lib/operations/backups/providers/archive-store';
+import {
   SupabaseCliDatabaseArchiveProvider,
   type DatabaseDumpCommand,
 } from '@/lib/operations/backups/providers/database-archive';
@@ -17,7 +27,10 @@ import {
   SupabaseStorageArchiveProvider,
   type SupabaseStorageClientLike,
 } from '@/lib/operations/backups/providers/storage-archive';
-import type { DatabaseRecoveryProvider } from '@/lib/operations/backups/provider-types';
+import type {
+  ArchiveKeyProvider,
+  DatabaseRecoveryProvider,
+} from '@/lib/operations/backups/provider-types';
 
 const temporaryDirectories: string[] = [];
 
@@ -248,5 +261,122 @@ describe('WASDOK-55 Storage object archive provider', () => {
         },
       ],
     });
+  });
+});
+
+describe('WASDOK-55 encrypted archive packaging and custody', () => {
+  it('streams a ZIP through AES-256-GCM, records safe metadata and zeroes the obtained key buffer', async () => {
+    const workDir = await temporaryDirectory();
+    const fileA = join(workDir, 'roles.sql');
+    const fileB = join(workDir, 'storage_manifest.json');
+    await writeFile(fileA, '-- DEMO roles\n', 'utf8');
+    await writeFile(fileB, '{"demo":true}\n', 'utf8');
+
+    const keyMaterial = Buffer.alloc(32, 7);
+    const keyProvider: ArchiveKeyProvider = {
+      getEncryptionKey: async () => keyMaterial,
+    };
+
+    const packaged = await packageEncryptedArchive({
+      backupId: '55000000-0000-0000-0000-000000000501',
+      inputFiles: [fileA, fileB],
+      outputDirectory: workDir,
+      keyRef: 'kms://ocpng/backup-key-v1',
+      keyProvider,
+    });
+
+    expect(packaged.filePath.endsWith('.zip.enc')).toBe(true);
+    expect(packaged.byteSize).toBeGreaterThan(0);
+    expect(packaged.checksumSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(packaged.encryption).toMatchObject({
+      algorithm: 'AES-256-GCM',
+      keyRef: 'kms://ocpng/backup-key-v1',
+    });
+    expect(packaged.encryption.nonceBase64).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+    expect(packaged.encryption.authTagBase64).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+    expect(JSON.stringify(packaged)).not.toContain(Buffer.alloc(32, 7).toString('base64'));
+    expect([...keyMaterial].every((value) => value === 0)).toBe(true);
+
+    const artifact = await readFileBytes(packaged.filePath);
+    expect(createHash('sha256').update(artifact).digest('hex')).toBe(packaged.checksumSha256);
+
+    const source = readFileSync('lib/operations/backups/package.ts', 'utf8');
+    expect(source).toContain("from 'archiver'");
+    expect(source).toMatch(/archive\.pipe\(cipher\)/);
+    expect(source).not.toMatch(/readFile(?:Sync)?\(/);
+  });
+
+  it('verifies an untampered encrypted archive and rejects changed ciphertext', async () => {
+    const workDir = await temporaryDirectory();
+    const input = join(workDir, 'data.sql');
+    await writeFile(input, 'DEMO DATABASE EXPORT\n', 'utf8');
+    const rawKey = Buffer.alloc(32, 11);
+    const keyProvider = new ResolverArchiveKeyProvider(async () => Buffer.from(rawKey));
+
+    const packaged = await packageEncryptedArchive({
+      backupId: '55000000-0000-0000-0000-000000000502',
+      inputFiles: [input],
+      outputDirectory: workDir,
+      keyRef: 'kms://ocpng/backup-key-v1',
+      keyProvider,
+    });
+
+    await expect(verifyEncryptedArchive({ artifact: packaged, keyProvider })).resolves.toBe(true);
+
+    const tampered = Buffer.from(await readFile(packaged.filePath));
+    tampered[Math.max(0, tampered.length - 1)] ^= 0xff;
+    await writeFile(packaged.filePath, tampered);
+    await expect(verifyEncryptedArchive({ artifact: packaged, keyProvider })).rejects.toThrow(/integrity|checksum|authentication/i);
+  });
+
+  it('rejects archive keys that are not exactly 256 bits', async () => {
+    const provider = new ResolverArchiveKeyProvider(async () => Buffer.alloc(31, 1));
+    await expect(provider.getEncryptionKey('kms://ocpng/backup-key-v1')).rejects.toThrow(/256-bit/i);
+  });
+
+  it('stores only encrypted artifacts in the configured private bucket and creates bounded signed download grants', async () => {
+    const workDir = await temporaryDirectory();
+    const artifactPath = join(workDir, 'BKP-2026-000001.zip.enc');
+    const artifactBytes = Buffer.from('DEMO ENCRYPTED ARTIFACT');
+    await writeFile(artifactPath, artifactBytes);
+    const checksumSha256 = createHash('sha256').update(artifactBytes).digest('hex');
+    const calls: Array<Record<string, unknown>> = [];
+
+    const client: SupabaseArchiveStorageClientLike = {
+      storage: {
+        from: (bucket: string) => ({
+          upload: async (path, body, options) => {
+            calls.push({ kind: 'upload', bucket, path, body, options });
+            return { data: { path }, error: null };
+          },
+          createSignedUrl: async (path, expiresIn) => {
+            calls.push({ kind: 'signed', bucket, path, expiresIn });
+            return { data: { signedUrl: 'https://example.invalid/demo-signed-url' }, error: null };
+          },
+        }),
+      },
+    };
+
+    const store = new SupabaseArchiveStore({ client, bucket: 'wasdok-backups' });
+    const stored = await store.putEncryptedArtifact({
+      filePath: artifactPath,
+      backupId: '55000000-0000-0000-0000-000000000503',
+      checksumSha256,
+      keyRef: 'kms://ocpng/backup-key-v1',
+      contentType: 'application/octet-stream',
+    });
+
+    expect(stored.ref).toBe('55000000-0000-0000-0000-000000000503/BKP-2026-000001.zip.enc');
+    expect(stored.byteSize).toBe(artifactBytes.byteLength);
+    expect(stored.checksumSha256).toBe(checksumSha256);
+    expect(calls[0]).toMatchObject({
+      kind: 'upload',
+      bucket: 'wasdok-backups',
+      path: stored.ref,
+    });
+
+    await expect(store.createDownloadGrant(stored.ref, 300)).resolves.toBe('https://example.invalid/demo-signed-url');
+    expect(calls[1]).toMatchObject({ kind: 'signed', expiresIn: 300 });
+    await expect(store.createDownloadGrant(stored.ref, 3600)).rejects.toThrow(/expiry/i);
   });
 });

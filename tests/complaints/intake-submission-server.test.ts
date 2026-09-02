@@ -31,6 +31,12 @@ const submission: PersistComplaintSubmission = {
     subject: 'DEMO Matter',
     allegation: 'DEMO allegation only',
   },
+  privacy: {
+    noticeVersion: 'OCPNG-COMPLAINT-PRIVACY-v1',
+    acknowledgementRequired: true,
+    method: 'assisted_acknowledgement',
+    notRequiredReason: null,
+  },
 };
 
 function authenticatedClient({
@@ -68,8 +74,8 @@ beforeEach(() => {
   createServerClient.mockReset();
 });
 
-describe('WASDOK-65 trusted Supabase persistence adapter', () => {
-  it('maps only validated server data to the trusted persistence RPC and returns receipt metadata', async () => {
+describe('WASDOK-65/66 trusted Supabase persistence adapter', () => {
+  it('maps validated complaint and minimal privacy evidence to the trusted persistence RPC', async () => {
     const rpc = vi.fn(async () => ({
       data: [{
         intake_id: '66000000-0000-4000-8000-000000000001',
@@ -99,6 +105,36 @@ describe('WASDOK-65 trusted Supabase persistence adapter', () => {
       p_respondent: 'DEMO Officer',
       p_subject: 'DEMO Matter',
       p_allegation: 'DEMO allegation only',
+      p_privacy_notice_version: 'OCPNG-COMPLAINT-PRIVACY-v1',
+      p_privacy_acknowledgement_required: true,
+      p_privacy_acknowledgement_method: 'assisted_acknowledgement',
+      p_privacy_not_required_reason: null,
+    });
+    expect(JSON.stringify(rpc.mock.calls[0][1])).not.toMatch(/acknowledged_at|privacyActorId|1999/);
+  });
+
+  it('maps the approved assisted not-required reason without inventing acknowledgement time', async () => {
+    const rpc = vi.fn(async () => ({
+      data: [{ receipt_reference: receipt, duplicate: false }],
+      error: null,
+    }));
+    createServiceClient.mockReturnValue({ rpc });
+
+    await persistComplaintSubmission({
+      ...submission,
+      privacy: {
+        noticeVersion: 'OCPNG-COMPLAINT-PRIVACY-v1',
+        acknowledgementRequired: false,
+        method: 'not_required',
+        notRequiredReason: 'formal_correspondence_already_received',
+      },
+    });
+
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_privacy_notice_version: 'OCPNG-COMPLAINT-PRIVACY-v1',
+      p_privacy_acknowledgement_required: false,
+      p_privacy_acknowledgement_method: 'not_required',
+      p_privacy_not_required_reason: 'formal_correspondence_already_received',
     });
   });
 

@@ -83,7 +83,7 @@ create table if not exists public.backup_schedules (
 
 create table if not exists public.backup_jobs (
   id uuid primary key default gen_random_uuid(),
-  backup_code text not null unique default (
+  backup_code text not null default (
     'BKP-' || to_char(current_date,'YYYY') || '-' ||
     lpad(nextval('public.backup_code_seq')::text,6,'0')
   ),
@@ -104,8 +104,28 @@ create table if not exists public.backup_jobs (
   safe_metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  constraint backup_jobs_backup_code_uq unique (backup_code),
   constraint backup_code_format check (backup_code ~ '^BKP-[0-9]{4}-[0-9]{6}$')
 );
+
+create or replace function public.prevent_backup_code_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.backup_code is distinct from old.backup_code then
+    raise exception 'backup_code is immutable' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.prevent_backup_code_mutation() from public, anon, authenticated;
+
+create trigger backup_jobs_immutable_backup_code
+before update of backup_code on public.backup_jobs
+for each row execute function public.prevent_backup_code_mutation();
 
 create table if not exists public.backup_artifacts (
   id uuid primary key default gen_random_uuid(),

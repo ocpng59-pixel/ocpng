@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(24);
+select plan(44);
 
 -- 1-7: lifecycle schema contract.
 select has_column('public', 'roles', 'is_active', 'roles has is_active');
@@ -251,8 +251,187 @@ select ok(
 );
 update public.profiles set is_active=true where id='78000000-0000-0000-0000-000000000001';
 
--- 24: the fixture remains transaction-contained and is rolled back below.
+-- 24: the lifecycle fixture remains valid before privileged role administration tests.
 select pass('WASDOK-78 lifecycle authorization transaction completes');
+
+-- Task 2 fixtures: fictional privileged and non-privileged users plus controlled roles.
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values
+(
+  '78000000-0000-0000-0000-000000000010',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated','authenticated','wasdok78-role-admin@test.invalid','',now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"DEMO WASDOK78 Role Administrator"}'::jsonb,now(),now()
+),
+(
+  '78000000-0000-0000-0000-000000000011',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated','authenticated','wasdok78-non-admin@test.invalid','',now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"DEMO WASDOK78 Non Administrator"}'::jsonb,now(),now()
+);
+
+insert into public.roles (
+  id, code, name, description, is_system, is_active, role_type, metadata
+) values
+(
+  '78000000-0000-0000-0000-000000000201',
+  'wasdok78_role_101',
+  'DEMO WASDOK78 Role 101',
+  'Role lifecycle target',
+  false,true,'operational','{"demo":true,"wasdok":"WASDOK-78"}'::jsonb
+),
+(
+  '78000000-0000-0000-0000-000000000202',
+  'wasdok78_admin_role',
+  'DEMO WASDOK78 Administrative Role',
+  'Role held by the fictional test administrator',
+  false,true,'administrative','{"demo":true,"wasdok":"WASDOK-78"}'::jsonb
+),
+(
+  '78000000-0000-0000-0000-000000000203',
+  'wasdok78_retire_assigned',
+  'DEMO WASDOK78 Assigned Retirement Role',
+  'Must not retire while actively assigned',
+  false,true,'operational','{"demo":true,"wasdok":"WASDOK-78"}'::jsonb
+),
+(
+  '78000000-0000-0000-0000-000000000204',
+  'wasdok78_retire_free',
+  'DEMO WASDOK78 Free Retirement Role',
+  'Can be logically retired',
+  false,true,'operational','{"demo":true,"wasdok":"WASDOK-78"}'::jsonb
+);
+
+insert into public.user_roles (user_id, role_id, organisation_scope, is_active)
+values
+('78000000-0000-0000-0000-000000000010','78000000-0000-0000-0000-000000000202','DEMO-WASDOK78',true),
+('78000000-0000-0000-0000-000000000011','78000000-0000-0000-0000-000000000203','DEMO-WASDOK78',true);
+
+insert into public.role_permissions (role_id, permission_id, is_active)
+select '78000000-0000-0000-0000-000000000202', p.id, true
+from public.permissions p
+where p.code='admin.manage_roles';
+
+-- 25-28: exact privileged role lifecycle RPC contract.
+select has_function('public','admin_create_role',array['text','text','text','text','text'],'role creation RPC exists');
+select has_function('public','admin_update_role',array['uuid','text','text','text','text','text'],'role update RPC exists');
+select has_function('public','admin_set_role_active',array['uuid','boolean','text'],'role activation RPC exists');
+select has_function('public','admin_retire_role',array['uuid','text'],'role retirement RPC exists');
+
+select set_config('request.jwt.claim.sub','78000000-0000-0000-0000-000000000010',true);
+
+-- 29: authorized role creation.
+select lives_ok(
+  $$select public.admin_create_role('wasdok78_demo_role','DEMO WASDOK78 Configurable Role','Created through audited role administration','training','Create controlled DEMO training role')$$,
+  'authorized administrator creates a configurable role'
+);
+
+-- 30: created state and audit evidence.
+select ok(
+  (select count(*) from public.roles where code='wasdok78_demo_role' and name='DEMO WASDOK78 Configurable Role' and role_type='training' and is_active and deleted_at is null)=1
+  and
+  (select count(*) from public.audit_events where action='access.role_created' and entity_type='role' and entity_id=(select id from public.roles where code='wasdok78_demo_role'))=1,
+  'role creation persists one active role and one immutable audit event'
+);
+
+-- 31-32: non-administrator cannot create a role and leaves no row.
+select set_config('request.jwt.claim.sub','78000000-0000-0000-0000-000000000011',true);
+select throws_ok(
+  $$select public.admin_create_role('wasdok78_forbidden_role','Forbidden DEMO Role','Must not be created','operational','Unauthorized role creation attempt')$$,
+  '42501',null,'non-administrator role creation is denied'
+);
+select is(
+  (select count(*)::int from public.roles where code='wasdok78_forbidden_role'),
+  0,
+  'denied role creation leaves no role row'
+);
+select set_config('request.jwt.claim.sub','78000000-0000-0000-0000-000000000010',true);
+
+-- 33-34: role codes remain globally reserved, including after logical retirement.
+select throws_ok(
+  $$select public.admin_create_role('wasdok78_demo_role','Duplicate DEMO Role','Duplicate code must fail','training','Attempt duplicate role code')$$,
+  '23505',null,'duplicate role code is rejected'
+);
+select ok(
+  (select count(*) from public.roles where code='wasdok78_demo_role')=1
+  and (select name from public.roles where code='wasdok78_demo_role')='DEMO WASDOK78 Configurable Role',
+  'duplicate rejection leaves the original role unchanged'
+);
+
+-- 35-36: administrator can update an unheld role, with audit evidence.
+select lives_ok(
+  $$select public.admin_update_role('78000000-0000-0000-0000-000000000201','wasdok78_role_101_updated','DEMO WASDOK78 Role 101 Updated','Updated through audited administration','training','Update configurable role details')$$,
+  'administrator updates an unheld role'
+);
+select ok(
+  (select count(*) from public.roles where id='78000000-0000-0000-0000-000000000201' and code='wasdok78_role_101_updated' and name='DEMO WASDOK78 Role 101 Updated' and role_type='training')=1
+  and (select count(*) from public.audit_events where action='access.role_updated' and entity_id='78000000-0000-0000-0000-000000000201')=1,
+  'role update persists approved fields and one audit event'
+);
+
+-- 37: held-role self-protection blocks role mutation.
+select throws_ok(
+  $$select public.admin_update_role('78000000-0000-0000-0000-000000000202','wasdok78_admin_role_changed','Changed held role','Must be denied','administrative','Attempt to change own held role')$$,
+  '42501',null,'administrator cannot update a role they currently hold'
+);
+
+-- 38-41: activate/deactivate lifecycle and audit evidence.
+select lives_ok(
+  $$select public.admin_set_role_active('78000000-0000-0000-0000-000000000201',false,'Temporarily deactivate configurable DEMO role')$$,
+  'administrator deactivates an unheld role'
+);
+select ok(
+  (select not is_active and deactivated_at is not null from public.roles where id='78000000-0000-0000-0000-000000000201')
+  and (select count(*) from public.audit_events where action='access.role_deactivated' and entity_id='78000000-0000-0000-0000-000000000201')=1,
+  'deactivation takes effect and is audited'
+);
+select lives_ok(
+  $$select public.admin_set_role_active('78000000-0000-0000-0000-000000000201',true,'Reactivate configurable DEMO role')$$,
+  'administrator reactivates an unheld role'
+);
+select ok(
+  (select is_active and deactivated_at is null from public.roles where id='78000000-0000-0000-0000-000000000201')
+  and (select count(*) from public.audit_events where action='access.role_activated' and entity_id='78000000-0000-0000-0000-000000000201')=1,
+  'reactivation takes effect and is audited'
+);
+
+-- 42: held-role self-protection also blocks activation changes.
+select throws_ok(
+  $$select public.admin_set_role_active('78000000-0000-0000-0000-000000000202',false,'Attempt to deactivate own held role')$$,
+  '42501',null,'administrator cannot deactivate a role they currently hold'
+);
+
+-- 43: retirement rejects any role with an active user assignment.
+select throws_ok(
+  $$select public.admin_retire_role('78000000-0000-0000-0000-000000000203','Attempt retirement while role is actively assigned')$$,
+  '23514',null,'role with an active assignment cannot be retired'
+);
+
+-- 44: unassigned retirement is logical, retained and audited; no DELETE occurs.
+select lives_ok(
+  $test$do $body$
+  begin
+    perform public.admin_retire_role('78000000-0000-0000-0000-000000000204','Retire unused configurable DEMO role');
+    if not exists(
+      select 1 from public.roles
+      where id='78000000-0000-0000-0000-000000000204'
+        and not is_active
+        and deleted_at is not null
+        and deleted_by='78000000-0000-0000-0000-000000000010'
+    ) then
+      raise exception 'retired role was not retained with logical deletion state';
+    end if;
+    if (select count(*) from public.audit_events where action='access.role_retired' and entity_id='78000000-0000-0000-0000-000000000204') <> 1 then
+      raise exception 'retirement audit event missing';
+    end if;
+  end
+  $body$;$test$,
+  'unassigned role is logically retired, retained and audited'
+);
 
 select * from finish();
 rollback;

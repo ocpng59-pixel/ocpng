@@ -69,6 +69,8 @@
 - Create `components/operations/backups/backup-request-form.tsx`.
 - Create `components/operations/backups/backup-status-card.tsx`.
 - Create `components/operations/backups/backup-history-table.tsx`.
+- Create `components/operations/backups/backup-schedule-form.tsx`.
+- Create `components/operations/backups/retention-policy-form.tsx`.
 - Create `components/operations/backups/restore-request-form.tsx`.
 - Create `components/operations/backups/restore-authorization-panel.tsx`.
 - Modify `lib/rbac/types.ts` and `lib/rbac/navigation.ts`.
@@ -78,6 +80,7 @@
 - Create `tests/backups/provider-contracts.test.ts`.
 - Create `tests/backups/manifest-package.test.ts`.
 - Create `tests/backups/worker.test.ts`.
+- Create `tests/backups/queries-mutations.test.ts`.
 - Create `tests/backups/routes-actions.test.ts`.
 - Create `tests/backups/e2e.test.ts`.
 - Create `tests/backups/security-boundary.test.ts`.
@@ -171,10 +174,12 @@ git commit -m "feat(WASDOK-55): add backup recovery foundation"
 - `request_production_restore(p_recovery_ref text, p_recovery_time timestamptz, p_reason text) returns uuid`.
 - `authorize_production_restore(p_restore_id uuid, p_reason text) returns void`.
 - `record_restore_worker_transition(p_restore_id uuid, p_from text, p_to text, p_safe_metadata jsonb) returns void` — trusted service/worker path only.
+- `admin_upsert_backup_schedule(p_schedule_id uuid, p_backup_type text, p_cadence text, p_retention_policy_id uuid, p_enabled boolean, p_reason text) returns uuid`.
+- `admin_upsert_retention_policy(p_policy_id uuid, p_name text, p_retention_days integer, p_purge_enabled boolean, p_reason text) returns uuid`.
 
 - [ ] **Step 1: Write RED workflow/security tests**
 
-Prove permission enforcement, mandatory 3–500 reason, illegal lifecycle transitions rejected with `23514`, self-authorization rejected, a user without `backup.authorize_production_restore` cannot authorize, an authorization cannot target an already rejected/completed restore, and safe audit events are appended for request/authorization/completion without credentials or archive contents.
+Prove permission enforcement, mandatory 3–500 reason, illegal lifecycle transitions rejected with `23514`, self-authorization rejected, a user without `backup.authorize_production_restore` cannot authorize, an authorization cannot target an already rejected/completed restore, schedule changes require `backup.schedule`, retention changes require `backup.manage_retention`, and safe audit events are appended without credentials or archive contents.
 
 - [ ] **Step 2: Run RED**
 
@@ -195,7 +200,7 @@ private.assert_backup_transition(from_state text, to_state text)
 private.assert_restore_transition(from_state text, to_state text)
 ```
 
-Authenticated request RPCs use `SECURITY DEFINER set search_path=''` and resolve actor from `auth.uid()`. Worker transition RPCs reject ordinary authenticated execution and are granted only to the trusted service role used by the operations worker.
+Authenticated request/admin RPCs use `SECURITY DEFINER set search_path=''` and resolve actor from `auth.uid()`. Worker transition RPCs reject ordinary authenticated execution and are granted only to the trusted service role used by the operations worker.
 
 - [ ] **Step 4: Run GREEN**
 
@@ -233,7 +238,7 @@ npm run test:rls
 
 - [ ] **Step 3: Implement `02000`**
 
-Revoke direct DML from `anon`/`authenticated`; grant authenticated execution only on user-facing request/read RPCs; keep worker transition RPCs inaccessible to browser roles. Revoke default PUBLIC function execution for WASDOK-55 functions.
+Revoke direct DML from `anon`/`authenticated`; grant authenticated execution only on user-facing request/read/admin RPCs; keep worker transition RPCs inaccessible to browser roles. Revoke default PUBLIC function execution for WASDOK-55 functions.
 
 - [ ] **Step 4: Run GREEN and commit**
 
@@ -276,7 +281,7 @@ Test server-only configuration rejects missing/invalid project ref, Management A
 
 - [ ] **Step 2: Implement server configuration**
 
-Add `getBackupOperationsConfiguration()` reading these server-only values: `OCPNG_SUPABASE_PROJECT_REF`, `OCPNG_SUPABASE_MANAGEMENT_TOKEN`, `OCPNG_BACKUP_DATABASE_URL`, `OCPNG_BACKUP_BUCKET`, and `OCPNG_BACKUP_KEY_REF`. Never prefix any of them `NEXT_PUBLIC_`. The configuration object may carry secrets only inside server-only modules and worker code; UI/action return values must never include them.
+Add `getBackupOperationsConfiguration()` reading `OCPNG_SUPABASE_PROJECT_REF`, `OCPNG_SUPABASE_MANAGEMENT_TOKEN`, `OCPNG_BACKUP_DATABASE_URL`, `OCPNG_BACKUP_BUCKET`, and `OCPNG_BACKUP_KEY_REF`. Never prefix any of them `NEXT_PUBLIC_`. The configuration object may carry secrets only inside server-only modules and worker code; UI/action return values must never include them.
 
 - [ ] **Step 3: Implement provider contracts/types and run GREEN**
 
@@ -410,13 +415,13 @@ git commit -m "feat(WASDOK-55): add encrypted backup packaging and custody"
 
 - [ ] **Step 1: Write RED worker tests**
 
-Use fake providers and prove exact lifecycle order `QUEUED → RUNNING → PACKAGING → VERIFYING → AVAILABLE`, any mandatory provider/verification failure ends `FAILED`, retry never rewrites prior audit evidence, logs redact secrets, and expired-artifact purge requires a retention-approved job.
+Use fake providers and prove exact lifecycle order `QUEUED → RUNNING → PACKAGING → VERIFYING → AVAILABLE`, any mandatory provider/verification failure ends `FAILED`, retry never rewrites prior audit evidence, logs redact secrets, schedule enqueue is idempotent, and expired-artifact purge requires an enabled retention policy with `purge_enabled=true`.
 
 - [ ] **Step 2: Implement one-job runner**
 
 `backup-worker.mjs --job-id <uuid>` loads one queued job, obtains server-only providers, uses an isolated temporary directory, performs export/identity coverage/storage/package/verification/store, records worker transitions, and recursively removes temporary plaintext/export files in `finally`.
 
-- [ ] **Step 3: Add schedule/retention worker modes**
+- [ ] **Step 3: Implement schedule/retention worker modes**
 
 Support `--enqueue-due-schedules` and `--purge-expired`, both idempotent. Do not run the worker inside normal Next.js route handlers.
 
@@ -431,9 +436,12 @@ git commit -m "feat(WASDOK-55): add backup operations worker"
 
 ---
 
-### Task 9: Backup & Recovery UI and guarded actions
+### Task 9: Backup domain adapters, UI, schedules, retention and guarded actions
 
 **Files:**
+- Create: `lib/operations/backups/queries.ts`
+- Create: `lib/operations/backups/mutations.ts`
+- Create: `tests/backups/queries-mutations.test.ts`
 - Create: `app/dashboard/operations/backups/page.tsx`
 - Create: `app/dashboard/operations/backups/[backupId]/page.tsx`
 - Create: `app/dashboard/operations/backups/restore/page.tsx`
@@ -441,31 +449,56 @@ git commit -m "feat(WASDOK-55): add backup operations worker"
 - Create: `components/operations/backups/backup-request-form.tsx`
 - Create: `components/operations/backups/backup-status-card.tsx`
 - Create: `components/operations/backups/backup-history-table.tsx`
+- Create: `components/operations/backups/backup-schedule-form.tsx`
+- Create: `components/operations/backups/retention-policy-form.tsx`
 - Create: `components/operations/backups/restore-request-form.tsx`
 - Create: `components/operations/backups/restore-authorization-panel.tsx`
 - Modify: `lib/rbac/navigation.ts`
 - Create: `tests/backups/routes-actions.test.ts`
 
-- [ ] **Step 1: Write RED route/action tests**
+**Interfaces:**
 
-Prove `backup.view` protects the dashboard, action-specific permissions protect create/verify/download/schedule/restore, `requestDownloadAction` records reason then creates a short-lived grant without persisting URL, production restore displays recovery timestamp/data-loss impact and cannot self-authorize, and no provider credential enters form state/HTML.
+```ts
+listBackupJobs(): Promise<BackupJobSummary[]>
+getBackupDetail(backupId: string): Promise<BackupDetail | null>
+listBackupSchedules(): Promise<BackupScheduleView[]>
+listRetentionPolicies(): Promise<RetentionPolicyView[]>
+listRecoveryPoints(): Promise<ProviderRecoveryStatus>
+requestBackup(input: RequestBackupInput): Promise<string>
+requestDownload(input: RequestDownloadInput): Promise<{ url: string; expiresAt: string }>
+upsertBackupSchedule(input: BackupScheduleInput): Promise<string>
+upsertRetentionPolicy(input: RetentionPolicyInput): Promise<string>
+requestRestoreTest(input: RestoreTestInput): Promise<string>
+requestProductionRestore(input: ProductionRestoreInput): Promise<string>
+authorizeProductionRestore(input: RestoreAuthorizationInput): Promise<void>
+```
 
-- [ ] **Step 2: Implement navigation/routes**
+- [ ] **Step 1: Write RED domain adapter tests**
 
-Add Administration item `Backup & Recovery` at `/dashboard/operations/backups`, requiring `backup.view`. Detail screen shows backup lifecycle, recovery domains, manifest-safe metadata, verification, retention and download availability.
+Prove queries use the authenticated server client for operational metadata, mutations call only approved RPCs, `requestDownload()` requires `backup.download` plus reason before invoking `ArchiveStore.createDownloadGrant`, signed URLs are returned only from the server action and never inserted into database rows, and schedule/retention adapters map authorization/validation errors safely.
 
-- [ ] **Step 3: Implement restore UI**
+- [ ] **Step 2: Implement `queries.ts` and `mutations.ts`**
 
-Separate `Restore Test` and `Production Restore`. The production panel shows requester, proposed recovery point, estimated data-loss window, authorization state and different-user authorization requirement.
+Keep Supabase row mapping and provider recovery-point reads in the domain layer. No UI component calls `.from('backup_*')`, service client or Management API directly.
 
-- [ ] **Step 4: Run GREEN and commit**
+- [ ] **Step 3: Write RED route/action tests**
+
+Prove `backup.view` protects the dashboard; action-specific permissions protect create/verify/download/schedule/retention/restore; production restore displays recovery timestamp/data-loss impact and cannot self-authorize; and no provider credential enters form state/HTML.
+
+- [ ] **Step 4: Implement navigation/routes and administration forms**
+
+Add Administration item `Backup & Recovery` at `/dashboard/operations/backups`, requiring `backup.view`. Dashboard shows status/history plus schedule and retention sections only when the user holds the corresponding administration permission. Detail screen shows lifecycle, recovery domains, manifest-safe metadata, verification and download availability. Restore screen separates `Restore Test` and `Production Restore`, and production authorization is displayed as a different-user action.
+
+- [ ] **Step 5: Run GREEN and commit**
 
 ```bash
-npx vitest run tests/backups/routes-actions.test.ts
+npx vitest run tests/backups/queries-mutations.test.ts tests/backups/routes-actions.test.ts
 npm run test:routes
 npm run typecheck
 npm run lint
-git add app/dashboard/operations/backups components/operations/backups lib/rbac/navigation.ts tests/backups/routes-actions.test.ts
+git add lib/operations/backups/queries.ts lib/operations/backups/mutations.ts \
+  app/dashboard/operations/backups components/operations/backups lib/rbac/navigation.ts \
+  tests/backups/queries-mutations.test.ts tests/backups/routes-actions.test.ts
 git commit -m "feat(WASDOK-55): add backup recovery administration UI"
 ```
 
@@ -483,7 +516,7 @@ git commit -m "feat(WASDOK-55): add backup recovery administration UI"
 
 - [ ] **Step 1: Write RED E2E/CI contract**
 
-Gate with `WASDOK55_BACKUP_E2E=true`. Use only `DEMO WASDOK55` metadata and fake/local provider adapters in CI. Prove backup request → worker execution → verified AVAILABLE artifact, unauthorized download denial, short-lived grant generation, restore-test request/result, production requester/authorizer separation, provider failure → FAILED, and safe immutable audit evidence.
+Gate with `WASDOK55_BACKUP_E2E=true`. Use only `DEMO WASDOK55` metadata and fake/local provider adapters in CI. Prove backup request → worker execution → verified AVAILABLE artifact, unauthorized download denial, short-lived grant generation, schedule/retention authorization, restore-test request/result, production requester/authorizer separation, provider failure → FAILED, and safe immutable audit evidence.
 
 - [ ] **Step 2: Add static security rules**
 

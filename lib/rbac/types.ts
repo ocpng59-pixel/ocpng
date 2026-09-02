@@ -39,7 +39,16 @@ export type PermissionCode =
   | 'admin.manage_users'
   | 'admin.manage_roles'
   | 'admin.manage_settings'
-  | 'audit.view';
+  | 'audit.view'
+  | 'backup.view'
+  | 'backup.create'
+  | 'backup.verify'
+  | 'backup.download'
+  | 'backup.schedule'
+  | 'backup.restore_test'
+  | 'backup.restore_production'
+  | 'backup.authorize_production_restore'
+  | 'backup.manage_retention';
 
 export interface NavigationItem {
   title: string;

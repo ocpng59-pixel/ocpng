@@ -125,7 +125,7 @@ describe('WASDOK-55 logical database archive provider', () => {
 
     const result = await provider.createLogicalExport(workDir);
 
-    expect(result.files.map(basename).sort()).toEqual([
+    expect(result.files.map((file) => basename(file)).sort()).toEqual([
       'data.sql',
       'migration_history_data.sql',
       'migration_history_schema.sql',
@@ -226,7 +226,7 @@ describe('WASDOK-55 Storage object archive provider', () => {
 
     expect(result.objectCount).toBe(1);
     expect(result.byteSize).toBe(5);
-    expect(result.files.map(basename)).toContain('storage_manifest.json');
+    expect(result.files.map((file) => basename(file))).toContain('storage_manifest.json');
 
     const objectPath = join(workDir, 'storage', 'private-evidence', 'evidence.txt');
     expect(new Uint8Array(await readFile(objectPath))).toEqual(objectBytes);

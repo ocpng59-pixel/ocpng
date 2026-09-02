@@ -19,6 +19,12 @@ const submittedResult: IntakeSubmissionResult = {
   duplicate: false,
 };
 
+const unavailableResult: IntakeSubmissionResult = {
+  status: 'unavailable',
+  fieldErrors: {},
+  formError: 'Unable to submit the complaint right now. Please try again.',
+};
+
 beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   host = document.createElement('div');
@@ -138,7 +144,7 @@ describe('complaint intake interaction', () => {
   });
 
   it('requires public acknowledgement before invoking the trusted submission action', async () => {
-    const submitAction = vi.fn(async () => submittedResult);
+    const submitAction = vi.fn(async (_form: FormData, _idempotencyKey: string): Promise<IntakeSubmissionResult> => submittedResult);
     await render(undefined, 'public', submitAction);
     fill();
     await checkDetails();
@@ -148,7 +154,7 @@ describe('complaint intake interaction', () => {
   });
 
   it('submits public intake with acknowledgement and displays the controlled receipt', async () => {
-    const submitAction = vi.fn(async () => submittedResult);
+    const submitAction = vi.fn(async (_form: FormData, _idempotencyKey: string): Promise<IntakeSubmissionResult> => submittedResult);
     await render(undefined, 'public', submitAction);
     fill();
     await checkDetails();
@@ -174,7 +180,7 @@ describe('complaint intake interaction', () => {
   });
 
   it('submits the assisted non-required path with the approved reason', async () => {
-    const submitAction = vi.fn(async () => submittedResult);
+    const submitAction = vi.fn(async (_form: FormData, _idempotencyKey: string): Promise<IntakeSubmissionResult> => submittedResult);
     await render(undefined, 'assisted', submitAction);
     fill();
     await checkDetails();
@@ -189,9 +195,8 @@ describe('complaint intake interaction', () => {
   });
 
   it('reuses the same idempotency key for an unchanged retry after an unavailable response', async () => {
-    const submitAction = vi.fn()
-      .mockResolvedValueOnce({ status: 'unavailable', fieldErrors: {}, formError: 'Unable to submit the complaint right now. Please try again.' } satisfies IntakeSubmissionResult)
-      .mockResolvedValueOnce(submittedResult);
+    const submitAction = vi.fn(async (_form: FormData, _idempotencyKey: string): Promise<IntakeSubmissionResult> => submittedResult);
+    submitAction.mockResolvedValueOnce(unavailableResult).mockResolvedValueOnce(submittedResult);
     await render(undefined, 'public', submitAction);
     fill();
     await checkDetails();
@@ -203,7 +208,7 @@ describe('complaint intake interaction', () => {
   });
 
   it('invalidates validation and the retry key when complaint details change', async () => {
-    const submitAction = vi.fn(async () => ({ status: 'unavailable', fieldErrors: {}, formError: 'Unable to submit the complaint right now. Please try again.' } satisfies IntakeSubmissionResult));
+    const submitAction = vi.fn(async (_form: FormData, _idempotencyKey: string): Promise<IntakeSubmissionResult> => unavailableResult);
     await render(undefined, 'public', submitAction);
     fill();
     await checkDetails();

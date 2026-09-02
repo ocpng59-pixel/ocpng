@@ -76,7 +76,7 @@ beforeEach(() => {
 
 describe('WASDOK-65/66 trusted Supabase persistence adapter', () => {
   it('maps validated complaint and minimal privacy evidence to the trusted persistence RPC', async () => {
-    const rpc = vi.fn(async () => ({
+    const rpc = vi.fn(async (_name: string, _args: Record<string, unknown>) => ({
       data: [{
         intake_id: '66000000-0000-4000-8000-000000000001',
         receipt_reference: receipt,
@@ -114,7 +114,7 @@ describe('WASDOK-65/66 trusted Supabase persistence adapter', () => {
   });
 
   it('maps the approved assisted not-required reason without inventing acknowledgement time', async () => {
-    const rpc = vi.fn(async () => ({
+    const rpc = vi.fn(async (_name: string, _args: Record<string, unknown>) => ({
       data: [{ receipt_reference: receipt, duplicate: false }],
       error: null,
     }));

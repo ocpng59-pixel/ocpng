@@ -178,22 +178,26 @@ describeE2E('WASDOK-55 Backup & Recovery end-to-end', () => {
         keyRef: 'DEMO-WASDOK55-KEY-REF',
       }),
       verifyArchive: async () => true,
-      storeArchive: async (artifact: { byteSize: number; checksumSha256: string }) => {
+      storeArchive: async (artifact: unknown) => {
+        const packaged = artifact as { byteSize?: unknown; checksumSha256?: unknown };
+        if (typeof packaged.byteSize !== 'number' || typeof packaged.checksumSha256 !== 'string') {
+          throw new Error('DEMO packaged artifact is invalid.');
+        }
         const inserted = await service.from('backup_artifacts').insert({
           backup_id: availableBackupId,
           artifact_type: 'ENCRYPTED_FULL_ARCHIVE',
           storage_reference: `DEMO-WASDOK55/${availableBackupId}.zip.enc`,
-          byte_size: artifact.byteSize,
-          archive_checksum: artifact.checksumSha256,
+          byte_size: packaged.byteSize,
+          archive_checksum: packaged.checksumSha256,
           encryption_algorithm: 'AES-256-GCM',
           encryption_key_reference: 'DEMO-WASDOK55-KEY-REF',
           recovery_domains: { application_database: true, identity: true, storage_objects: true },
           safe_metadata: { demo: true, wasdok: 'WASDOK-55' },
         });
         expect(inserted.error).toBeNull();
-        return { ref: `DEMO-WASDOK55/${availableBackupId}.zip.enc`, byteSize: artifact.byteSize, checksumSha256: artifact.checksumSha256 };
+        return { ref: `DEMO-WASDOK55/${availableBackupId}.zip.enc`, byteSize: packaged.byteSize, checksumSha256: packaged.checksumSha256 };
       },
-      recordVerification: async (jobId: string, status: string, safeMetadata: Record<string, unknown>) => {
+      recordVerification: async (jobId: string, status: string, safeMetadata: Record<string, unknown> = {}) => {
         const verification = await service.rpc('record_backup_verification', {
           p_backup_id: jobId,
           p_status: status,

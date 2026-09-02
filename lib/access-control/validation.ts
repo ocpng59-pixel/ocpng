@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import type { RoleFormInput, ScopeFormInput } from '@/lib/access-control/types';
+import type {
+  RoleFormInput,
+  ScopeFormInput,
+  SecurityClassification,
+} from '@/lib/access-control/types';
 
 export type ValidationResult<T> =
   | { success: true; data: T }
@@ -14,6 +18,17 @@ const email = z.string().trim().email();
 const uuid = z.string().uuid();
 const roleName = z.string().trim().min(1).max(160);
 const roleDescription = z.string().trim().max(1000);
+const displayName = z.string().trim().min(1).max(160);
+const compartment = z.enum([
+  'PUBLIC',
+  'INTERNAL',
+  'CONFIDENTIAL',
+  'RESTRICTED',
+  'LEADERSHIP_RESTRICTED',
+  'ANNUAL_STATEMENT_SECRET',
+  'INTELLIGENCE_SECRET',
+  'LEGAL_PRIVILEGE',
+]);
 
 const roleFormSchema = z.object({
   code: roleCode,
@@ -60,6 +75,10 @@ export function parseScope(value: unknown): ValidationResult<ScopeFormInput> {
   return parseWithSchema(scopeFormSchema, value);
 }
 
+export function parseUserInvite(value: unknown): ValidationResult<{ email: string; displayName: string; reason: string }> {
+  return parseWithSchema(z.object({ email, displayName, reason }), value);
+}
+
 export function parseUserRoleChange(value: unknown): ValidationResult<{ userId: string; roleId: string; reason: string }> {
   return parseWithSchema(z.object({ userId: uuid, roleId: uuid, reason }), value);
 }
@@ -72,21 +91,29 @@ export function parseRolePermissionChange(value: unknown): ValidationResult<{ ro
   }), value);
 }
 
-export function parseCompartmentChange(value: unknown): ValidationResult<{ userId: string; compartment: string; reason: string }> {
-  return parseWithSchema(z.object({
-    userId: uuid,
-    compartment: z.enum([
-      'PUBLIC',
-      'INTERNAL',
-      'CONFIDENTIAL',
-      'RESTRICTED',
-      'LEADERSHIP_RESTRICTED',
-      'ANNUAL_STATEMENT_SECRET',
-      'INTELLIGENCE_SECRET',
-      'LEGAL_PRIVILEGE',
-    ]),
-    reason,
-  }), value);
+export function parseUserScopeChange(value: unknown): ValidationResult<{
+  userId: string;
+  scopeCode: string;
+  scopeType: string;
+  reason: string;
+}> {
+  return parseWithSchema(z.object({ userId: uuid, scopeCode, scopeType, reason }), value);
+}
+
+export function parseUserScopeRevoke(value: unknown): ValidationResult<{
+  userId: string;
+  scopeCode: string;
+  reason: string;
+}> {
+  return parseWithSchema(z.object({ userId: uuid, scopeCode, reason }), value);
+}
+
+export function parseCompartmentChange(value: unknown): ValidationResult<{
+  userId: string;
+  compartment: SecurityClassification;
+  reason: string;
+}> {
+  return parseWithSchema(z.object({ userId: uuid, compartment, reason }), value);
 }
 
 export function parseUserStatusChange(value: unknown): ValidationResult<{ userId: string; isActive: boolean; reason: string }> {

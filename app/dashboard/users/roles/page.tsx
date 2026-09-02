@@ -35,7 +35,7 @@ export default async function RolesAdministrationPage() {
         <Link className="oc-action-link active" href="/dashboard/users/roles">Review roles</Link>
         <Link className="oc-action-link" href="/dashboard/users/permissions">Permissions</Link>
         <Link className="oc-action-link" href="/dashboard/users/scopes-compartments">Grant compartment</Link>
-        <Link className="oc-action-link" href="/dashboard/audit-log">Audit History</Link>
+        <Link className="oc-action-link" href="/dashboard/audit-log?domain=access">Audit History</Link>
       </nav>
 
       <section className="oc-card">

@@ -6,7 +6,13 @@ const root = new URL('../', import.meta.url);
 const requiredFiles = [
   'app/layout.tsx','app/page.tsx','app/login/page.tsx','app/forgot-password/page.tsx','app/set-password/page.tsx',
   'app/dashboard/layout.tsx','app/dashboard/page.tsx','app/dashboard/[...module]/page.tsx',
-  'components/app-shell.tsx','components/sidebar.tsx','components/sign-out-control.tsx','components/module-landing.tsx','lib/config/module-pages.ts','lib/supabase/browser.ts','lib/supabase/server.ts','lib/rbac/authorized-navigation.ts','lib/rbac/module-route-authorization.ts'
+  'app/dashboard/users/actions.ts','app/dashboard/users/page.tsx','app/dashboard/users/[userId]/page.tsx','app/dashboard/users/[userId]/access/page.tsx',
+  'app/dashboard/users/roles/actions.ts','app/dashboard/users/roles/page.tsx','app/dashboard/users/roles/new/page.tsx','app/dashboard/users/roles/[roleId]/page.tsx',
+  'app/dashboard/users/permissions/page.tsx','app/dashboard/users/scopes-compartments/page.tsx',
+  'components/app-shell.tsx','components/sidebar.tsx','components/sign-out-control.tsx','components/module-landing.tsx',
+  'components/access-control/action-message.tsx','components/access-control/role-form.tsx','components/access-control/permission-matrix.tsx',
+  'components/access-control/user-access-form.tsx','components/access-control/user-invite-form.tsx',
+  'lib/config/module-pages.ts','lib/supabase/browser.ts','lib/supabase/server.ts','lib/rbac/authorized-navigation.ts','lib/rbac/module-route-authorization.ts'
 ];
 for (const rel of requiredFiles) assert.ok(fs.existsSync(path.join(root.pathname, rel)), `missing route or shell file: ${rel}`);
 const definitions = fs.readFileSync(path.join(root.pathname,'lib/config/module-pages.ts'),'utf8');
@@ -54,4 +60,4 @@ assert.match(moduleRoute, /has_compartment/);
 assert.match(moduleRoute, /if \(!authorized\) notFound\(\)/);
 assert.match(moduleRoute, /authorizedActions/);
 assert.match(moduleRoute, /actions:\s*authorizedActions/);
-console.log(`WASDOK 360 route smoke checks: PASS (${hrefs.length} configured module surfaces)`);
+console.log(`WASDOK 360 route smoke checks: PASS (${hrefs.length} configured module surfaces; ${requiredFiles.length} required route/shell files)`);

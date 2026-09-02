@@ -18,7 +18,10 @@ beforeEach(() => {
 
 describe('WASDOK-78 access control mutation adapters', () => {
   it('sends only trusted RPC input fields for a compartment grant', async () => {
-    const rpc = vi.fn(async () => ({ data: '78000000-0000-0000-0000-000000000900', error: null }));
+    const rpc = vi.fn(async (_name: string, _args: Record<string, unknown>) => ({
+      data: '78000000-0000-0000-0000-000000000900',
+      error: null,
+    }));
     createServerClient.mockResolvedValue({ rpc });
 
     await expect(grantUserCompartment({
@@ -34,7 +37,7 @@ describe('WASDOK-78 access control mutation adapters', () => {
       p_reason: 'Grant controlled complaint review access',
     });
 
-    const sent = rpc.mock.calls[0]?.[1] as Record<string, unknown>;
+    const sent = rpc.mock.calls[0]?.[1];
     expect(sent).not.toHaveProperty('actorId');
     expect(sent).not.toHaveProperty('actor_id');
     expect(sent).not.toHaveProperty('grantedBy');

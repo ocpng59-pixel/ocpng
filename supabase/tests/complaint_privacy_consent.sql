@@ -126,6 +126,16 @@ select throws_ok(
   )$$,
   '22023',null,'Public submission cannot claim acknowledgement is not required'
 );
+select throws_ok(
+  $$select * from public.persist_complaint_intake_submission(
+    'public_web','OCPNG',null,
+    'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    'DEMO WASDOK66 Public','wasdok66-public@test.invalid','','',
+    'DEMO Government Body','','DEMO Privacy Subject','DEMO Privacy Allegation',
+    'FORGED-PRIVACY-v0',true,'public_checkbox',null
+  )$$,
+  '22023',null,'Unapproved privacy notice version is rejected'
+);
 select lives_ok(
   $$select * from public.persist_complaint_intake_submission(
     'public_web','OCPNG',null,
@@ -179,6 +189,16 @@ select lives_ok(
   'Authorized assisted submission can record acknowledgement evidence'
 );
 select ok(pg_temp.bool_query($q$select pe.recorded_by='66000000-0000-4000-8000-000000000001'::uuid and pe.acknowledgement_method='assisted_acknowledgement' and pe.acknowledged_at is not null from public.complaint_intake_privacy_evidence pe join public.complaint_intakes ci on ci.id=pe.intake_id where ci.idempotency_key_hash='dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'$q$),'Assisted acknowledgement is attributed to the verified actor');
+select throws_ok(
+  $$select * from public.persist_complaint_intake_submission(
+    'assisted_internal','UAT-COMPLAINTS','66000000-0000-4000-8000-000000000001',
+    'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    'DEMO WASDOK66 Assisted','wasdok66-assisted@test.invalid','','',
+    'DEMO Government Body','DEMO Officer','DEMO Assisted Privacy','DEMO Assisted Allegation',
+    'OCPNG-COMPLAINT-PRIVACY-v1',false,'not_required','formal_correspondence_already_received'
+  )$$,
+  '22023',null,'Assisted retry cannot change acknowledgement evidence to not-required'
+);
 
 -- Assisted not-required path is narrowly constrained to an approved reason code.
 select lives_ok(
@@ -203,7 +223,9 @@ select throws_ok(
   '22023',null,'Unapproved not-required reason is rejected'
 );
 
--- Evidence is append-only even for the trusted role.
+-- Service-role privilege checks above ensure application callers cannot update or
+-- delete. Reset to the database owner here so the trigger itself is also tested.
+reset role;
 select throws_ok(
   $$update public.complaint_intake_privacy_evidence set notice_version='FORGED' where intake_id=(select id from public.complaint_intakes where idempotency_key_hash='cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc')$$,
   '23514',null,'Privacy evidence cannot be modified after recording'

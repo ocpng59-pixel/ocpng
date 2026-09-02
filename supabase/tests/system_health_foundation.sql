@@ -3,6 +3,22 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
+create or replace function pg_temp.health_metric_seeded(p_code text)
+returns boolean
+language plpgsql
+as $$
+declare
+  v_exists boolean := false;
+begin
+  if to_regclass('public.health_metric_catalog') is null then
+    return false;
+  end if;
+  execute 'select exists(select 1 from public.health_metric_catalog where metric_code=$1)'
+    into v_exists using p_code;
+  return v_exists;
+end;
+$$;
+
 select plan(42);
 
 select ok(exists(select 1 from public.permissions where code='system.health.view'),'system.health.view permission exists');
@@ -48,12 +64,12 @@ select ok((select array_agg(e.enumlabel order by e.enumsortorder)::text[] from p
 select ok(exists(select 1 from pg_type t join pg_namespace n on n.oid=t.typnamespace where n.nspname='public' and t.typname='health_alert_status'),'health_alert_status enum exists');
 select ok((select array_agg(e.enumlabel order by e.enumsortorder)::text[] from pg_type t join pg_namespace n on n.oid=t.typnamespace join pg_enum e on e.enumtypid=t.oid where n.nspname='public' and t.typname='health_alert_status') @> array['OPEN','ACKNOWLEDGED','RESOLVED']::text[],'health alert enum has lifecycle values');
 
-select ok(exists(select 1 from public.health_metric_catalog where metric_code='app.availability'),'app availability metric seeded');
-select ok(exists(select 1 from public.health_metric_catalog where metric_code='db.database_bytes'),'database bytes metric seeded');
-select ok(exists(select 1 from public.health_metric_catalog where metric_code='storage.bytes'),'storage bytes metric seeded');
-select ok(exists(select 1 from public.health_metric_catalog where metric_code='backup.last_verified_age_seconds'),'backup freshness metric seeded');
-select ok(exists(select 1 from public.health_metric_catalog where metric_code='deployment.schema_drift'),'schema drift metric seeded');
-select ok(exists(select 1 from public.health_metric_catalog where metric_code='security.advisor_warning_count'),'security advisor warning metric seeded');
+select ok(pg_temp.health_metric_seeded('app.availability'),'app availability metric seeded');
+select ok(pg_temp.health_metric_seeded('db.database_bytes'),'database bytes metric seeded');
+select ok(pg_temp.health_metric_seeded('storage.bytes'),'storage bytes metric seeded');
+select ok(pg_temp.health_metric_seeded('backup.last_verified_age_seconds'),'backup freshness metric seeded');
+select ok(pg_temp.health_metric_seeded('deployment.schema_drift'),'schema drift metric seeded');
+select ok(pg_temp.health_metric_seeded('security.advisor_warning_count'),'security advisor warning metric seeded');
 
 select * from finish();
 rollback;

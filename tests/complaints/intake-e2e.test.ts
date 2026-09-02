@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 import { submitPublicIntake } from '@/app/complaints/intake/actions';
 
+const describeE2E = process.env.WASDOK67_COMPLAINT_E2E === 'true'
+  ? describe
+  : describe.skip;
+
 function validPublicForm() {
   const form = new FormData();
   form.set('complainantName', 'DEMO WASDOK67 Applicant');
@@ -17,7 +21,7 @@ function validPublicForm() {
   return form;
 }
 
-describe('WASDOK-67 complaint intake end-to-end', () => {
+describeE2E('WASDOK-67 complaint intake end-to-end', () => {
   it('submits a valid public complaint through the server action and creates the authoritative audit chain', async () => {
     const idempotencyKey = randomUUID();
     const idempotencyKeyHash = createHash('sha256').update(idempotencyKey).digest('hex');

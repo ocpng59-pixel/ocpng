@@ -50,7 +50,7 @@ export default async function ScopesCompartmentsPage() {
                   <td>{user.compartmentCount}</td>
                   <td>
                     <Link className="oc-action-link" href={`/dashboard/users/${user.id}/access`}>
-                      Manage roles, scopes &amp; compartments
+                      Manage roles, scopes & compartments
                     </Link>
                   </td>
                 </tr>

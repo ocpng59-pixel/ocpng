@@ -58,8 +58,9 @@ Before any production collector execution, validate the worker configuration **w
 3. Confirm all required server-side values are present in the approved worker secret store, but do not print their values to logs or tickets.
 4. Confirm the Management API credential is dedicated to health metrics access and is not reused as a backup-management credential.
 5. Confirm the configured public application URL is HTTPS and points to the approved production application.
-6. Confirm the service-role credential remains available only to the trusted worker runtime.
-7. Confirm no scheduler or startup hook automatically invokes `health-collector.mjs`.
+6. Confirm `NEXT_PUBLIC_SUPABASE_URL` is the canonical root URL `https://<OCPNG_SUPABASE_PROJECT_REF>.supabase.co`; the runtime must reject a mismatched hostname, alternate path, port, query string or fragment before the service-role client is created.
+7. Confirm the service-role credential remains available only to the trusted worker runtime.
+8. Confirm no scheduler or startup hook automatically invokes `health-collector.mjs`.
 
 This validation does not authorize `health-collector.mjs --once`; the first collector execution remains a **separate enablement gate**.
 

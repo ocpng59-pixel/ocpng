@@ -62,6 +62,57 @@ describe('WASDOK-85 deployment state persistence', () => {
     expect(JSON.stringify(recordDeploymentState.mock.calls)).not.toContain('rawEnvironment');
   });
 
+  it('isolates an auxiliary deployment-state provider failure without aborting other telemetry', async () => {
+    const { runHealthCollector } = await loadRunner();
+    const recordSnapshot = vi.fn(async () => 'snapshot-id');
+    const recordDeploymentState = vi.fn(async () => undefined);
+
+    const result = await runHealthCollector({
+      providers: [
+        {
+          source: 'deployment',
+          provider: {
+            collect: async () => ({
+              source: 'deployment',
+              status: 'AVAILABLE',
+              metrics: [{ code: 'deployment.schema_drift', value: 0 }],
+            }),
+            collectDeploymentState: async () => {
+              throw new Error('DEMO-DEPLOYMENT-SECRET-MUST-NOT-ESCAPE');
+            },
+          },
+        },
+        {
+          source: 'storage',
+          provider: {
+            collect: async () => ({
+              source: 'storage',
+              status: 'AVAILABLE',
+              metrics: [{ code: 'storage.object_count', value: 4 }],
+            }),
+          },
+        },
+      ],
+      recordSnapshot,
+      recordDeploymentState,
+      now: () => new Date('2026-09-03T02:35:00.000Z'),
+      providerTimeoutMs: 1_000,
+    });
+
+    expect(recordSnapshot).toHaveBeenCalledTimes(2);
+    expect(recordSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'storage',
+      metrics: [{ metric_code: 'storage.object_count', value: 4 }],
+    }));
+    expect(recordDeploymentState).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      status: 'COMPLETED_WITH_UNKNOWN',
+      collectedSources: 2,
+      unknownSources: ['deployment'],
+    });
+    expect(JSON.stringify(recordSnapshot.mock.calls)).not.toContain('DEMO-DEPLOYMENT-SECRET-MUST-NOT-ESCAPE');
+  });
+
   it('wires deployment-state persistence through the single-run CLI runtime boundary', () => {
     const cli = readFileSync(CLI_PATH, 'utf8');
     expect(cli).toContain('recordDeploymentState: runtime?.recordDeploymentState');

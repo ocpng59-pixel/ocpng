@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(70);
+select plan(73);
 
 -- 1-48: browser roles cannot directly read or mutate WASDOK-85 operational tables.
 -- Authorized human reads must flow through normalized permission-enforcing RPCs.
@@ -24,10 +24,11 @@ select ok(
 from tables cross join roles cross join privileges
 order by tables.name,roles.name,privileges.name;
 
--- 49-58: anonymous browser access cannot execute any WASDOK-85 public RPC.
+-- 49-59: anonymous browser access cannot execute any WASDOK-85 public RPC.
 with functions(signature) as (
   values
     ('public.record_health_snapshot(text,timestamp with time zone,jsonb,jsonb)'),
+    ('public.record_deployment_health_state(text,text,text,text,text,text,timestamp with time zone)'),
     ('public.admin_set_health_threshold(text,numeric,numeric,text,text)'),
     ('public.admin_set_health_threshold_active(uuid,boolean,text)'),
     ('public.acknowledge_health_alert(uuid,text)'),
@@ -44,10 +45,11 @@ select ok(
 )
 from functions;
 
--- 59-60: authenticated browser sessions cannot execute infrastructure-only RPCs.
+-- 60-62: authenticated browser sessions cannot execute infrastructure-only RPCs.
 with functions(signature) as (
   values
     ('public.record_health_snapshot(text,timestamp with time zone,jsonb,jsonb)'),
+    ('public.record_deployment_health_state(text,text,text,text,text,text,timestamp with time zone)'),
     ('public.read_applied_schema_version()')
 )
 select ok(
@@ -56,10 +58,11 @@ select ok(
 )
 from functions;
 
--- 61-62: trusted service role retains infrastructure authority.
+-- 63-65: trusted service role retains infrastructure authority.
 with functions(signature) as (
   values
     ('public.record_health_snapshot(text,timestamp with time zone,jsonb,jsonb)'),
+    ('public.record_deployment_health_state(text,text,text,text,text,text,timestamp with time zone)'),
     ('public.read_applied_schema_version()')
 )
 select ok(
@@ -68,7 +71,7 @@ select ok(
 )
 from functions;
 
--- 63-70: authenticated users may call only permission-enforcing human/admin RPCs.
+-- 66-73: authenticated users may call only permission-enforcing human/admin RPCs.
 with functions(signature) as (
   values
     ('public.admin_set_health_threshold(text,numeric,numeric,text,text)'),

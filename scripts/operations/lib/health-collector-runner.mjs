@@ -192,14 +192,27 @@ async function collectProvider(descriptor, timeoutMs) {
 }
 
 async function collectDeploymentState(descriptor, timeoutMs) {
-  if (!descriptor || normalizeSource(descriptor.source) !== 'deployment') return null;
-  if (typeof descriptor.provider?.collectDeploymentState !== 'function') return null;
+  if (!descriptor || normalizeSource(descriptor.source) !== 'deployment') {
+    return { state: null, reason: null };
+  }
+  if (typeof descriptor.provider?.collectDeploymentState !== 'function') {
+    return { state: null, reason: null };
+  }
+
   const collect = descriptor.provider.collectDeploymentState.bind(descriptor.provider);
   const outcome = await withTimeout(() => collect(), timeoutMs);
-  if (outcome.kind !== 'result') {
-    throw new Error('Health collector deployment state collection failed.');
+  if (outcome.kind === 'timeout') {
+    return { state: null, reason: 'PROVIDER_UNAVAILABLE' };
   }
-  return normalizeDeploymentState(outcome.value);
+  if (outcome.kind === 'error') {
+    return { state: null, reason: 'PROVIDER_ERROR' };
+  }
+
+  try {
+    return { state: normalizeDeploymentState(outcome.value), reason: null };
+  } catch {
+    return { state: null, reason: 'PROVIDER_ERROR' };
+  }
 }
 
 export async function runHealthCollector(input = {}) {
@@ -219,10 +232,21 @@ export async function runHealthCollector(input = {}) {
     ? requireFunction(input.recordDeploymentState, 'recordDeploymentState')
     : null;
 
-  const [collected, deploymentState] = await Promise.all([
+  const [collectedSnapshots, deploymentCollection] = await Promise.all([
     Promise.all(providers.map((descriptor) => collectProvider(descriptor, providerTimeoutMs))),
-    deploymentDescriptor ? collectDeploymentState(deploymentDescriptor, providerTimeoutMs) : Promise.resolve(null),
+    deploymentDescriptor
+      ? collectDeploymentState(deploymentDescriptor, providerTimeoutMs)
+      : Promise.resolve({ state: null, reason: null }),
   ]);
+
+  const collected = deploymentCollection.reason
+    ? collectedSnapshots.map((snapshot) => (
+        snapshot.source === 'deployment'
+          ? unknownSnapshot('deployment', deploymentCollection.reason)
+          : snapshot
+      ))
+    : collectedSnapshots;
+  const deploymentState = deploymentCollection.state;
   const observedAt = nowIso(now);
 
   for (const snapshot of collected) {

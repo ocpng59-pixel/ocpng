@@ -187,3 +187,62 @@ $$;
 
 revoke all on function public.read_system_health_metric_history(text,integer) from public, anon, authenticated;
 grant execute on function public.read_system_health_metric_history(text,integer) to authenticated;
+
+-- Final normalized latest-metric semantics: freshness is evaluated at read time.
+-- Stored sample status remains immutable historical evidence, but stale telemetry
+-- must never be presented to an operator as HEALTHY/WARNING/CRITICAL.
+create or replace function public.read_system_health_latest_metrics(p_domain text default null)
+returns table(
+  metric_code text,
+  domain text,
+  name text,
+  unit text,
+  numeric_value numeric,
+  status public.health_status,
+  reason text,
+  source text,
+  provider text,
+  observed_at timestamptz,
+  collected_at timestamptz,
+  stale_after_seconds integer
+)
+language plpgsql
+stable
+security definer
+set search_path=''
+as $$
+begin
+  if coalesce(auth.role(),'')='service_role' then return; end if;
+  perform private.require_health_permission('system.health.view');
+
+  return query
+  select distinct on (s.metric_code)
+    s.metric_code,
+    c.domain,
+    c.name,
+    c.unit,
+    s.numeric_value,
+    case
+      when now() > s.observed_at + make_interval(secs => s.stale_after_seconds)
+        then 'UNKNOWN'::public.health_status
+      else s.status
+    end as status,
+    case
+      when now() > s.observed_at + make_interval(secs => s.stale_after_seconds)
+        then 'STALE_SAMPLE'::text
+      else s.reason
+    end as reason,
+    s.source,
+    s.provider,
+    s.observed_at,
+    s.collected_at,
+    s.stale_after_seconds
+  from public.system_health_metric_samples s
+  join public.health_metric_catalog c on c.metric_code=s.metric_code and c.is_active
+  where p_domain is null or c.domain=p_domain
+  order by s.metric_code,s.observed_at desc,s.collected_at desc,s.id desc;
+end;
+$$;
+
+revoke all on function public.read_system_health_latest_metrics(text) from public, anon, authenticated;
+grant execute on function public.read_system_health_latest_metrics(text) to authenticated;

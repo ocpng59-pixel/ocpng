@@ -40,7 +40,7 @@ Required server-side values:
 - `OCPNG_SUPABASE_PROJECT_REF` — the production Supabase project reference.
 - `OCPNG_SUPABASE_HEALTH_TOKEN` — a separately managed, least-privilege Supabase Management API token for the metrics scrape endpoint. Use a scoped token limited to the required project and **`analytics_logs_read`** permission where scoped tokens are available.
 - `OCPNG_PUBLIC_APP_URL` — canonical production application base URL used by the public-safe application liveness probe.
-- `NEXT_PUBLIC_SUPABASE_URL`, the currently approved public/publishable client key, and `SUPABASE_SERVICE_ROLE_KEY` are supplied to the trusted collector runtime according to the existing server-only Supabase operations pattern; the service-role value must never enter client code.
+- `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are consumed by the trusted collector runtime according to the existing server-only Supabase operations pattern. The application may separately require its approved public/publishable client key, but the collector runtime does not consume that key; the service-role value must never enter client code.
 - `OCPNG_DEPLOYED_COMMIT` — optional normalized deployed commit identifier when the worker platform provides it safely.
 - `OCPNG_RELEASE_ID` — optional normalized release identifier when the worker platform provides it safely.
 - `OCPNG_HEALTH_COLLECTOR_RUNTIME_MODULE` — must resolve to the reviewed production adapter at `scripts/operations/runtime/health-production-runtime.mjs`. In a deployed worker, use the absolute path to that file in the immutable release checkout rather than an arbitrary external module.

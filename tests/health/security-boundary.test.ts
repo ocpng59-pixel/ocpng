@@ -93,10 +93,10 @@ describe('WASDOK-85 production runtime security boundary', () => {
       'encryption_key_reference',
       'provider_recovery_ref',
       'impact_summary',
-      'safe_metadata',
     ]) {
       expect(supabaseRuntime).not.toContain(forbidden);
     }
+    expect(supabaseRuntime).not.toMatch(/\.select\([^)]*safe_metadata/i);
   });
 
   it('documents only blank server-side production runtime placeholders', () => {

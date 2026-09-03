@@ -207,7 +207,17 @@ describe('WASDOK-85 Task 7 collector worker', () => {
 
   it('uses exactly one service-only snapshot write per source so the database remains the single alert-lifecycle authority', async () => {
     const { runHealthCollector } = await loadRunner();
-    const recordSnapshot = vi.fn(async () => 'snapshot-id');
+    type RecordedSnapshot = {
+      source: string;
+      observedAt: string;
+      metrics: Array<{ metric_code: string; value: number }>;
+      safeMetadata: Record<string, string>;
+    };
+    const recordedSnapshots: RecordedSnapshot[] = [];
+    const recordSnapshot = vi.fn(async (snapshot: RecordedSnapshot) => {
+      recordedSnapshots.push(snapshot);
+      return 'snapshot-id';
+    });
     let value = 250;
     const database = provider('database', async () => ({
       source: 'database', status: 'AVAILABLE', metrics: [{ code: 'db.database_bytes', value }],
@@ -218,8 +228,8 @@ describe('WASDOK-85 Task 7 collector worker', () => {
     await runHealthCollector({ providers: [database], recordSnapshot, now: () => new Date('2026-09-03T01:30:00.000Z') });
 
     expect(recordSnapshot).toHaveBeenCalledTimes(2);
-    expect(recordSnapshot.mock.calls[0][0].metrics).toEqual([{ metric_code: 'db.database_bytes', value: 250 }]);
-    expect(recordSnapshot.mock.calls[1][0].metrics).toEqual([{ metric_code: 'db.database_bytes', value: 50 }]);
+    expect(recordedSnapshots[0]?.metrics).toEqual([{ metric_code: 'db.database_bytes', value: 250 }]);
+    expect(recordedSnapshots[1]?.metrics).toEqual([{ metric_code: 'db.database_bytes', value: 50 }]);
   });
 
   it('accepts only the external single-run --once execution contract and contains no internal endless scheduler', async () => {

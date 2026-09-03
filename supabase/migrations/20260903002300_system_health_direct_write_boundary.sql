@@ -132,3 +132,58 @@ $$;
 revoke all on function public.record_health_snapshot(text,timestamptz,jsonb,jsonb)
   from public, anon, authenticated;
 grant execute on function public.record_health_snapshot(text,timestamptz,jsonb,jsonb) to service_role;
+
+-- Task 8: capacity history is exposed only through a normalized, permission-checked
+-- read model. It intentionally excludes snapshot/provider safe_metadata and all
+-- protected Storage object identifiers.
+create or replace function public.read_system_health_metric_history(
+  p_metric_code text,
+  p_days integer default 90
+)
+returns table(
+  metric_code text,
+  unit text,
+  numeric_value numeric,
+  status public.health_status,
+  reason text,
+  source text,
+  provider text,
+  observed_at timestamptz,
+  collected_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path=''
+as $$
+declare
+  v_metric_code text := btrim(coalesce(p_metric_code,''));
+begin
+  if coalesce(auth.role(),'')='service_role' then return; end if;
+  perform private.require_health_permission('system.health.view');
+
+  if p_days is null or p_days < 1 or p_days > 90 then
+    raise exception 'Health history window must be between 1 and 90 days' using errcode='22023';
+  end if;
+
+  if not exists(
+    select 1 from public.health_metric_catalog c
+    where c.metric_code=v_metric_code
+      and c.domain in ('database','storage')
+      and c.is_active
+  ) then
+    raise exception 'Health history metric is not approved for capacity history' using errcode='22023';
+  end if;
+
+  return query
+  select s.metric_code,c.unit,s.numeric_value,s.status,s.reason,s.source,s.provider,s.observed_at,s.collected_at
+  from public.system_health_metric_samples s
+  join public.health_metric_catalog c on c.metric_code=s.metric_code and c.is_active
+  where s.metric_code=v_metric_code
+    and s.observed_at >= now() - make_interval(days => p_days)
+  order by s.observed_at asc,s.collected_at asc,s.id asc;
+end;
+$$;
+
+revoke all on function public.read_system_health_metric_history(text,integer) from public, anon, authenticated;
+grant execute on function public.read_system_health_metric_history(text,integer) to authenticated;

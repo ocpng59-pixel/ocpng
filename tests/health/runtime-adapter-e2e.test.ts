@@ -61,7 +61,7 @@ describeRuntime('WASDOK-85 production runtime adapter local Supabase E2E', () =>
 
     const runtime = createHealthCollectorRuntime({
       env: {
-        NEXT_PUBLIC_SUPABASE_URL: requiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
+        NEXT_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnopqrst.supabase.co',
         SUPABASE_SERVICE_ROLE_KEY: requiredEnv('SUPABASE_SERVICE_ROLE_KEY'),
         OCPNG_SUPABASE_PROJECT_REF: 'abcdefghijklmnopqrst',
         OCPNG_SUPABASE_HEALTH_TOKEN: 'sbp_DEMO_HEALTH_TOKEN_1234567890',
@@ -70,6 +70,7 @@ describeRuntime('WASDOK-85 production runtime adapter local Supabase E2E', () =>
         OCPNG_RELEASE_ID: 'release-85-e2e',
       },
       fetchImpl,
+      createClientImpl: vi.fn(() => service),
       now: () => new Date('2026-09-03T01:00:00.000Z'),
     });
 

@@ -18,7 +18,7 @@ export type DeploymentHealthPersistenceInput = {
 export function createHealthSupabaseRuntime(input: {
   supabaseUrl: string;
   serviceRoleKey: string;
-  createClientImpl?: (...args: any[]) => any;
+  createClientImpl?: (...args: unknown[]) => unknown;
 }): {
   backupSource: {
     loadLastVerifiedBackupAt(): Promise<string | null>;

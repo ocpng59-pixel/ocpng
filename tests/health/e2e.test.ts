@@ -221,8 +221,8 @@ describeE2E('WASDOK-85 System Health end-to-end', () => {
   it('isolates a failed provider while persisting a successful provider from the same run', async () => {
     const result = await runHealthCollector({
       providers: [
-        { source: 'DEMO-good-provider', provider: { collect: async () => ({ status: 'AVAILABLE', metrics: [{ code: 'app.availability', value: 1 }] }) } },
-        { source: 'DEMO-failed-provider', provider: { collect: async () => { throw new Error('DEMO provider secret must not escape'); } } },
+        { source: 'demo-good-provider', provider: { collect: async () => ({ status: 'AVAILABLE', metrics: [{ code: 'app.availability', value: 1 }] }) } },
+        { source: 'demo-failed-provider', provider: { collect: async () => { throw new Error('DEMO provider secret must not escape'); } } },
       ],
       recordSnapshot: async ({ source, observedAt, metrics, safeMetadata }: { source: string; observedAt: string; metrics: Array<{ metric_code: string; value: number }>; safeMetadata: Record<string, unknown> }) => {
         const persisted = await service.rpc('record_health_snapshot', {
@@ -237,16 +237,16 @@ describeE2E('WASDOK-85 System Health end-to-end', () => {
       providerTimeoutMs: 100,
     });
     expect(result.status).toBe('COMPLETED_WITH_UNKNOWN');
-    expect(result.unknownSources).toEqual(['DEMO-failed-provider']);
+    expect(result.unknownSources).toEqual(['demo-failed-provider']);
 
     const goodSample = await service.from('system_health_metric_samples')
       .select('metric_code,numeric_value')
-      .eq('source', 'DEMO-good-provider');
+      .eq('source', 'demo-good-provider');
     expect(goodSample.data).toHaveLength(1);
 
     const failed = await service.from('system_health_snapshots')
       .select('status,safe_metadata')
-      .eq('source', 'DEMO-failed-provider')
+      .eq('source', 'demo-failed-provider')
       .single();
     expect(failed.error).toBeNull();
     expect(failed.data?.status).toBe('UNKNOWN');

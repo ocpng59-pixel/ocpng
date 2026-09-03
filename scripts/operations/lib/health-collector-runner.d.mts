@@ -14,10 +14,23 @@ export type HealthCollectorProviderSnapshot =
       reason?: 'AUTHENTICATION_FAILED' | 'AUTHORIZATION_FAILED' | 'RATE_LIMITED' | 'PROVIDER_UNAVAILABLE' | 'PROVIDER_ERROR';
     };
 
+export type HealthCollectorDeploymentState = {
+  environment: string;
+  deployedCommit?: string;
+  releaseId?: string;
+  expectedSchemaVersion: string;
+  appliedSchemaVersion?: string;
+  status: 'HEALTHY' | 'WARNING' | 'CRITICAL' | 'UNKNOWN';
+  source: 'deployment';
+  provider: 'wasdok';
+  observedAt: string;
+};
+
 export type HealthCollectorProviderDescriptor = {
   source: string;
   provider: {
     collect(): Promise<HealthCollectorProviderSnapshot> | HealthCollectorProviderSnapshot;
+    collectDeploymentState?(): Promise<HealthCollectorDeploymentState> | HealthCollectorDeploymentState;
   };
 };
 
@@ -51,7 +64,8 @@ export function normalizeHealthProviderMetrics(
 
 export function runHealthCollector(input: {
   providers: HealthCollectorProviderDescriptor[];
-  recordSnapshot(input: HealthCollectorRecordSnapshotInput): Promise<void> | void;
+  recordSnapshot(input: HealthCollectorRecordSnapshotInput): Promise<unknown> | unknown;
+  recordDeploymentState?(input: HealthCollectorDeploymentState): Promise<void> | void;
   now?: () => Date;
   providerTimeoutMs?: number;
 }): Promise<HealthCollectorResult>;

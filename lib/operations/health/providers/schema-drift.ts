@@ -4,7 +4,7 @@ import type {
 } from '@/lib/operations/health/provider-types';
 import type { HealthStatus } from '@/lib/operations/health/types';
 
-export const EXPECTED_SCHEMA_VERSION = '20260903002300';
+export const EXPECTED_SCHEMA_VERSION = '20260903002400';
 
 export interface DeploymentHealthState {
   environment: string;

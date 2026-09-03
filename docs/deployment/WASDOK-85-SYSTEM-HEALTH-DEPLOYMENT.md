@@ -39,6 +39,8 @@ Required server-side values:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are supplied to the trusted collector runtime according to the existing server-only Supabase operations pattern; the service-role value must never enter client code.
 - Collector runtime/module configuration must reference only the reviewed WASDOK-85 runtime adapter.
 
+The reviewed runtime adapter must expose the collector's `recordSnapshot` persistence callback and, when the deployment provider exposes deployment state, `recordDeploymentState`. `recordDeploymentState` must map only the normalized environment, deployed commit, release identifier, expected/applied schema versions, status and observed time into the service-role-only `record_deployment_health_state` RPC. It must not directly write `deployment_health_state`, pass arbitrary metadata, or attach raw environment variables.
+
 The public liveness endpoint may expose only the approved minimal health response. It must not reveal commit SHA, schema version, environment variables, provider configuration or credentials.
 
 ## Pre-enable validation
@@ -50,7 +52,7 @@ Before the first production scrape:
 3. Confirm `anon` and ordinary `authenticated` sessions have no direct SELECT/INSERT/UPDATE/DELETE access to health operational tables.
 4. Confirm `system.health.view` users can call only normalized read RPCs.
 5. Confirm `system.health.manage` is required for threshold administration and alert acknowledgement.
-6. Confirm service-role collector access is server-side only.
+6. Confirm service-role collector access is server-side only, including both `record_health_snapshot` and `record_deployment_health_state`.
 7. Confirm the Management API token can read the project metrics endpoint and cannot perform unrelated write operations.
 8. Confirm `/api/health` returns the public-safe liveness contract without infrastructure detail.
 9. Confirm no production thresholds have been silently created. Threshold values require an authorized administrative decision and reason.
@@ -69,6 +71,8 @@ Validate after that run:
 - raw Prometheus/provider payloads and provider error bodies are absent from database records and logs;
 - Storage object names/paths and protected filenames are absent;
 - `deployment.schema_drift` is `0` when the applied schema matches `20260903002300`;
+- deployment state contains only normalized safe identifiers, with source fixed to `deployment` and provider fixed to `wasdok`;
+- deployment state and deployment metrics age to `UNKNOWN` for human readers when their 300-second freshness window expires;
 - authorized System Health pages render normalized measurements and reasons;
 - unauthorized users receive no health data;
 - no service-role or Management API credential appears in browser output.
@@ -105,6 +109,7 @@ After scheduling:
 - verify forecasts remain `INSUFFICIENT_DATA` until seven distinct observation days exist;
 - verify backup health reads only WASDOK-55 operational metadata;
 - verify schema drift turns CRITICAL for a controlled mismatched version in non-production testing;
+- verify stale deployment state becomes UNKNOWN rather than remaining HEALTHY;
 - verify audit records identify authorized human threshold/acknowledgement actors;
 - verify application build/browser scans remain credential-clean.
 

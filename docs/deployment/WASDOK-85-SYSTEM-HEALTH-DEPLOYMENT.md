@@ -40,12 +40,29 @@ Required server-side values:
 - `OCPNG_SUPABASE_PROJECT_REF` — the production Supabase project reference.
 - `OCPNG_SUPABASE_HEALTH_TOKEN` — a separately managed, least-privilege Supabase Management API token for the metrics scrape endpoint. Use a scoped token limited to the required project and **`analytics_logs_read`** permission where scoped tokens are available.
 - `OCPNG_PUBLIC_APP_URL` — canonical production application base URL used by the public-safe application liveness probe.
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are supplied to the trusted collector runtime according to the existing server-only Supabase operations pattern; the service-role value must never enter client code.
-- Collector runtime/module configuration must reference only the reviewed WASDOK-85 runtime adapter.
+- `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are consumed by the trusted collector runtime according to the existing server-only Supabase operations pattern. The application may separately require its approved public/publishable client key, but the collector runtime does not consume that key; the service-role value must never enter client code.
+- `OCPNG_DEPLOYED_COMMIT` — optional normalized deployed commit identifier when the worker platform provides it safely.
+- `OCPNG_RELEASE_ID` — optional normalized release identifier when the worker platform provides it safely.
+- `OCPNG_HEALTH_COLLECTOR_RUNTIME_MODULE` — must resolve to the reviewed production adapter at `scripts/operations/runtime/health-production-runtime.mjs`. In a deployed worker, use the absolute path to that file in the immutable release checkout rather than an arbitrary external module.
 
-The reviewed runtime adapter must expose the collector's `recordSnapshot` persistence callback and, when the deployment provider exposes deployment state, `recordDeploymentState`. `recordDeploymentState` must map only the normalized environment, deployed commit, release identifier, expected/applied schema versions, status and observed time into the service-role-only `record_deployment_health_state` RPC. It must not directly write `deployment_health_state`, pass arbitrary metadata, or attach raw environment variables.
+The reviewed runtime adapter must expose `createHealthCollectorRuntime()` and the collector's `recordSnapshot` persistence callback and, when the deployment provider exposes deployment state, `recordDeploymentState`. `recordSnapshot` must use the service-role-only `record_health_snapshot` RPC. `recordDeploymentState` must map only the normalized environment, deployed commit, release identifier, expected/applied schema versions, status and observed time into the service-role-only `record_deployment_health_state` RPC. Canonical schema state must be read only through the service-role-only `read_applied_schema_version` RPC. The runtime must not directly write System Health tables, query the raw `supabase_migrations.schema_migrations` ledger, read `backup_artifacts`, pass arbitrary metadata, or attach raw environment variables.
 
 The public liveness endpoint may expose only the approved minimal health response. It must not reveal commit SHA, schema version, environment variables, provider configuration or credentials.
+
+### Configuration-only runtime validation
+
+Before any production collector execution, validate the worker configuration **without executing the collector**:
+
+1. Confirm `OCPNG_HEALTH_COLLECTOR_RUNTIME_MODULE` resolves to the immutable release copy of `scripts/operations/runtime/health-production-runtime.mjs`.
+2. Import that module only and confirm it exports `createHealthCollectorRuntime`. Importing the adapter must not execute collection or schedule work.
+3. Confirm all required server-side values are present in the approved worker secret store, but do not print their values to logs or tickets.
+4. Confirm the Management API credential is dedicated to health metrics access and is not reused as a backup-management credential.
+5. Confirm the configured public application URL is HTTPS and points to the approved production application.
+6. Confirm `NEXT_PUBLIC_SUPABASE_URL` is the canonical root URL `https://<OCPNG_SUPABASE_PROJECT_REF>.supabase.co`; the runtime must reject a mismatched hostname, alternate path, port, query string or fragment before the service-role client is created.
+7. Confirm the service-role credential remains available only to the trusted worker runtime.
+8. Confirm no scheduler or startup hook automatically invokes `health-collector.mjs`.
+
+This validation does not authorize `health-collector.mjs --once`; the first collector execution remains a **separate enablement gate**.
 
 ## Pre-enable validation
 
@@ -61,6 +78,7 @@ Before the first production scrape:
 8. Confirm the Management API token can read the project metrics endpoint and cannot perform unrelated write operations.
 9. Confirm `/api/health` returns the public-safe liveness contract without infrastructure detail.
 10. Confirm no production thresholds have been silently created. Threshold values require an authorized administrative decision and reason.
+11. Confirm the configuration-only runtime validation above has passed without executing the collector.
 
 ## Initial collector dry run
 

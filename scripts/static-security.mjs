@@ -56,6 +56,7 @@ const healthBrowserSurface = healthBrowserFiles.map((f)=>fs.readFileSync(f,'utf8
 const healthForbidden = [
   'OCPNG_SUPABASE_HEALTH_TOKEN',
   'OCPNG_SUPABASE_PROJECT_REF',
+  'OCPNG_HEALTH_COLLECTOR_RUNTIME_MODULE',
   'SUPABASE_SERVICE_ROLE_KEY',
   'OCPNG_BACKUP_DATABASE_URL',
   'createServiceSupabaseClient',
@@ -67,8 +68,84 @@ const healthForbidden = [
 for (const token of healthForbidden) {
   assert.ok(!healthBrowserSurface.includes(token), `WASDOK-85 browser surface must not contain ${token}`);
 }
-assert.doesNotMatch(healthBrowserSurface, /NEXT_PUBLIC_(?:OCPNG_)?(?:SUPABASE_HEALTH|SUPABASE_PROJECT_REF|SUPABASE_MANAGEMENT|BACKUP_DATABASE)/, 'WASDOK-85 privileged health/provider configuration must never be public environment data');
+assert.doesNotMatch(healthBrowserSurface, /NEXT_PUBLIC_(?:OCPNG_)?(?:SUPABASE_HEALTH|SUPABASE_PROJECT_REF|SUPABASE_MANAGEMENT|BACKUP_DATABASE|HEALTH_COLLECTOR_RUNTIME_MODULE)/, 'WASDOK-85 privileged health/provider configuration must never be public environment data');
 assert.doesNotMatch(healthBrowserSurface, /analytics\/endpoints\/metrics|api\.supabase\.com\/v1\/projects/i, 'WASDOK-85 browser surface must never scrape provider metrics endpoints');
 assert.doesNotMatch(healthBrowserSurface, /\b(?:filename|object_name|object_path|storage_reference)\b/i, 'WASDOK-85 browser surface must not expose protected Storage object identifiers');
 
-console.log(`WASDOK 360 static security scan: PASS (${files.length} source/config files; ${backupBrowserFiles.length} WASDOK-55 browser files; ${healthBrowserFiles.length} WASDOK-85 browser files)`);
+const requiredHealthRuntimeEnv = [
+  'OCPNG_SUPABASE_PROJECT_REF',
+  'OCPNG_SUPABASE_HEALTH_TOKEN',
+  'OCPNG_PUBLIC_APP_URL',
+  'OCPNG_DEPLOYED_COMMIT',
+  'OCPNG_RELEASE_ID',
+  'OCPNG_HEALTH_COLLECTOR_RUNTIME_MODULE',
+];
+for (const variable of requiredHealthRuntimeEnv) {
+  assert.match(envExample, new RegExp(`^${variable}=$`, 'm'), `WASDOK-85 .env.example must contain blank ${variable}`);
+  assert.ok(!envExample.includes(`NEXT_PUBLIC_${variable}`), `WASDOK-85 ${variable} must never be public`);
+}
+
+const healthRuntimePaths = [
+  'scripts/operations/runtime/health-production-runtime.mjs',
+  'scripts/operations/lib/health-runtime-config.mjs',
+  'scripts/operations/lib/health-supabase-runtime.mjs',
+  'scripts/operations/lib/providers/application-health.mjs',
+  'scripts/operations/lib/providers/supabase-metrics.mjs',
+  'scripts/operations/lib/providers/backup-health.mjs',
+  'scripts/operations/lib/providers/schema-drift.mjs',
+  'scripts/operations/lib/providers/security-health.mjs',
+];
+const healthRuntimeSurface = healthRuntimePaths
+  .map((relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8'))
+  .join('\n');
+assert.doesNotMatch(
+  healthRuntimeSurface,
+  /(?:sbp_|sb_secret_)[A-Za-z0-9_-]{20,}/,
+  'WASDOK-85 runtime must not contain hard-coded provider/service credentials',
+);
+assert.ok(
+  !healthRuntimeSurface.includes('supabase_migrations.schema_migrations'),
+  'WASDOK-85 runtime must never read raw Supabase migration ledger',
+);
+
+const healthSupabaseRuntime = fs.readFileSync(
+  path.join(root,'scripts/operations/lib/health-supabase-runtime.mjs'),
+  'utf8',
+);
+assert.doesNotMatch(
+  healthSupabaseRuntime,
+  /\.from\(['"](?:system_health_[^'"]*|deployment_health_state|health_metric_catalog)['"]\)/,
+  'WASDOK-85 runtime health persistence must use RPCs, not direct health table access',
+);
+const allowedHealthRuntimeRpcs = [
+  'read_applied_schema_version',
+  'record_deployment_health_state',
+  'record_health_snapshot',
+].sort();
+const healthRuntimeRpcNames = Array.from(
+  healthSupabaseRuntime.matchAll(/\.rpc\(['"]([^'"]+)['"]/g),
+  (match)=>match[1],
+).sort();
+assert.deepEqual(
+  healthRuntimeRpcNames,
+  allowedHealthRuntimeRpcs,
+  'WASDOK-85 runtime may invoke only the reviewed health RPC allowlist',
+);
+const healthBackupForbidden = [
+  'backup_artifacts',
+  'storage_reference',
+  'archive_checksum',
+  'encryption_key_reference',
+  'provider_recovery_ref',
+  'impact_summary',
+];
+for (const field of healthBackupForbidden) {
+  assert.ok(!healthSupabaseRuntime.includes(field), `WASDOK-85 runtime must not read protected backup field ${field}`);
+}
+assert.doesNotMatch(
+  healthSupabaseRuntime,
+  /\.select\([^)]*safe_metadata/i,
+  'WASDOK-85 runtime must not read arbitrary backup safe_metadata',
+);
+
+console.log(`WASDOK 360 static security scan: PASS (${files.length} source/config files; ${backupBrowserFiles.length} WASDOK-55 browser files; ${healthBrowserFiles.length} WASDOK-85 browser files; ${healthRuntimePaths.length} WASDOK-85 runtime files)`);

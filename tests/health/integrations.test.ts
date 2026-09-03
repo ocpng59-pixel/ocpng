@@ -132,8 +132,8 @@ describe('WASDOK-85 aggregate security integration', () => {
 });
 
 describe('WASDOK-85 deployment schema drift integration', () => {
-  it('pins the expected schema version to the final WASDOK-85 migration', () => {
-    expect(EXPECTED_SCHEMA_VERSION).toBe('20260903002300');
+  it('pins the expected schema version to the final WASDOK-85 hotfix migration', () => {
+    expect(EXPECTED_SCHEMA_VERSION).toBe('20260903002400');
   });
 
   it('reports no drift when applied and expected migration versions match', async () => {

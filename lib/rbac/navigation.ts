@@ -61,6 +61,7 @@ export const NAVIGATION: NavigationSection[] = [
     { title: 'Roles & Permissions', href: '/dashboard/users/roles', permissions: ['admin.manage_roles'] },
     { title: 'Audit Logs', href: '/dashboard/audit-log', permissions: ['audit.view'], classification: 'RESTRICTED' },
     { title: 'Backup & Recovery', href: '/dashboard/operations/backups', permissions: ['backup.view'], classification: 'RESTRICTED' },
+    { title: 'System Health', href: '/dashboard/operations/system-health', permissions: ['system.health.view'], classification: 'RESTRICTED' },
     { title: 'System Settings', href: '/dashboard/settings', permissions: ['admin.manage_settings'] },
   ]},
 ];

@@ -1,6 +1,19 @@
 -- WASDOK-85 — System Health, Capacity & Operational Monitoring Dashboard
 -- Task 3: final browser direct-access boundary and explicit RPC grants.
 
+-- Deployment/schema-drift collection needs the latest applied migration version,
+-- but migration history must never be exposed to browser sessions.
+create or replace function public.read_applied_schema_version()
+returns text
+language sql
+stable
+security definer
+set search_path=''
+as $$
+  select max(version)::text
+  from supabase_migrations.schema_migrations;
+$$;
+
 -- Health operational metadata is never accessed directly by browser roles.
 -- Human reads flow only through normalized SECURITY DEFINER RPCs that enforce
 -- system.health.view; mutations flow through audited system.health.manage RPCs.
@@ -28,6 +41,7 @@ revoke all on function public.read_system_health_latest_metrics(text) from publi
 revoke all on function public.read_system_health_thresholds() from public, anon, authenticated;
 revoke all on function public.read_system_health_alerts(text) from public, anon, authenticated;
 revoke all on function public.read_deployment_health_state() from public, anon, authenticated;
+revoke all on function public.read_applied_schema_version() from public, anon, authenticated;
 
 -- Human-facing RPCs are authenticated-only. Each RPC performs the authoritative
 -- system.health.view/system.health.manage check internally at the database boundary.
@@ -39,5 +53,6 @@ grant execute on function public.read_system_health_thresholds() to authenticate
 grant execute on function public.read_system_health_alerts(text) to authenticated;
 grant execute on function public.read_deployment_health_state() to authenticated;
 
--- Snapshot ingestion is infrastructure-only and cannot be invoked by browser roles.
+-- Infrastructure-only RPCs cannot be invoked by browser roles.
 grant execute on function public.record_health_snapshot(text,timestamptz,jsonb,jsonb) to service_role;
+grant execute on function public.read_applied_schema_version() to service_role;

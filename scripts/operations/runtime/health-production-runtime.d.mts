@@ -1,7 +1,13 @@
+import type {
+  HealthCollectorDeploymentState,
+  HealthCollectorProviderDescriptor,
+  HealthCollectorRecordSnapshotInput,
+} from '../lib/health-collector-runner.mjs';
+
 export type HealthCollectorRuntime = {
-  providers: Array<{ source: string; provider: { collect(): Promise<unknown> } }>;
-  recordSnapshot(input: unknown): Promise<void>;
-  recordDeploymentState(state: unknown): Promise<void>;
+  providers: HealthCollectorProviderDescriptor[];
+  recordSnapshot(input: HealthCollectorRecordSnapshotInput): Promise<void>;
+  recordDeploymentState(state: HealthCollectorDeploymentState): Promise<void>;
   now: () => Date;
   providerTimeoutMs: number;
 };

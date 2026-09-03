@@ -3,7 +3,31 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(7);
+select plan(8);
+
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+) values (
+  '85100000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000000',
+  'authenticated','authenticated','wasdok85-deployment-viewer@test.invalid','',now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"display_name":"DEMO WASDOK85 Deployment Viewer"}'::jsonb,now(),now()
+);
+
+insert into public.roles(id,code,name,description,is_system,is_active,role_type,metadata)
+values(
+  '85100000-0000-0000-0000-000000000101','wasdok85_deployment_viewer',
+  'DEMO WASDOK85 Deployment Viewer','Deployment health read test',false,true,'operational',
+  '{"demo":true,"wasdok":"WASDOK-85"}'::jsonb
+);
+
+insert into public.user_roles(user_id,role_id,is_active,assigned_at)
+values('85100000-0000-0000-0000-000000000001','85100000-0000-0000-0000-000000000101',true,now());
+
+insert into public.role_permissions(role_id,permission_id,is_active,granted_at)
+select '85100000-0000-0000-0000-000000000101'::uuid,p.id,true,now()
+from public.permissions p where p.code='system.health.view';
 
 select set_config('request.jwt.claim.role','service_role',true);
 select set_config('request.jwt.claim.sub','',true);
@@ -75,6 +99,25 @@ select lives_ok(
     'UNKNOWN',now()
   )$$,
   'unknown deployment state may omit applied schema version'
+);
+
+select lives_ok(
+  $$select public.record_deployment_health_state(
+    'stale-demo','abcdef1234567890','release-stale','20260903002300','20260903002300',
+    'HEALTHY',now()-interval '10 minutes'
+  )$$,
+  'service worker can persist an old observation for deterministic stale-read testing'
+);
+
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','85100000-0000-0000-0000-000000000001',true);
+
+select ok(
+  exists(
+    select 1 from public.read_deployment_health_state()
+    where environment='stale-demo' and status='UNKNOWN'
+  ),
+  'deployment state older than 300 seconds is normalized to UNKNOWN for human readers'
 );
 
 select * from finish();

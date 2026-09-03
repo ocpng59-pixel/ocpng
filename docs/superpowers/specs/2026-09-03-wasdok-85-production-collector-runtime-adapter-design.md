@@ -17,7 +17,7 @@ The runtime adapter is the trusted composition boundary between:
 3. Supabase Management API aggregate metrics;
 4. WASDOK-55 backup/recovery operational metadata;
 5. canonical schema-version drift detection;
-6. safe security aggregates when an approved aggregate source exists; and
+6. explicit UNKNOWN security-provider state until a separate aggregate-source design is approved; and
 7. the service-role-only health persistence RPCs.
 
 The adapter must make these dependencies available to the existing collector without exposing secrets, bypassing the reviewed RPC boundary, inventing unavailable metrics or broadening browser access.
@@ -102,7 +102,7 @@ Required runtime values:
 - `NEXT_PUBLIC_SUPABASE_URL` — existing Supabase API URL used server-side by the worker;
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only health persistence/read authority;
 - `OCPNG_SUPABASE_PROJECT_REF` — the 20-character target project reference;
-- `OCPNG_SUPABASE_HEALTH_TOKEN` — separately managed Management API credential for the approved project metrics endpoint;
+- `OCPNG_SUPABASE_HEALTH_TOKEN` — separately managed least-privilege Management API credential for the approved project metrics endpoint; it must not carry unrelated write authority where scoped tokens are available;
 - `OCPNG_PUBLIC_APP_URL` — canonical HTTPS base URL for the public-safe liveness probe.
 
 The adapter is production-specific, so deployment `environment` is fixed to `production` unless a later reviewed multi-environment runtime design explicitly changes that.
@@ -148,12 +148,12 @@ using `OCPNG_SUPABASE_HEALTH_TOKEN` as a bearer credential.
 
 The parser continues to extract only explicitly allowlisted aggregate series already reviewed by WASDOK-85. Unrecognized series and labels are discarded. No raw provider body is returned from the provider.
 
-Initial supported output remains the metrics that the existing reviewed parser can safely derive, including:
+This runtime-adapter task supports **only** the mappings already present in the reviewed provider:
 
 - `db.database_bytes`;
 - `db.connections_active`.
 
-Additional catalogue metrics may only be emitted if an implementation test demonstrates a deterministic mapping from an approved aggregate series with no sensitive labels or content. This runtime-adapter task must not broaden the parser merely to populate the catalogue.
+This task must not add additional Management API metric mappings. Any expansion to database, WAL, Storage, deadlock, connection-limit or other catalogue mappings requires a separate reviewed change rather than opportunistic implementation inside this adapter task.
 
 Authentication, authorization, rate-limit and provider/server failures remain normalized to `UNKNOWN` reason codes without including the response body or token.
 
@@ -201,13 +201,13 @@ The existing `AggregateSecurityHealthProvider` remains the approved normalizatio
 
 This runtime-adapter implementation will **not derive security metrics from ambiguous row contents**. The current `audit_events` table has no generic success/failure outcome column, and failed-login evidence is intentionally handled outside anonymous application audit insertion. Counting actions by string convention would create a misleading security signal.
 
-Therefore the initial production runtime will instantiate the security provider without an aggregate source unless a source already has a reviewed deterministic aggregate contract at implementation time. In that state the provider records an explicit `UNKNOWN` source snapshot and does not fabricate:
+Therefore the production runtime in this task will instantiate the security provider **without an aggregate source**. It will record an explicit `UNKNOWN` source snapshot and will not fabricate:
 
 - `security.failed_privileged_ops_24h`;
 - `security.failed_logins_24h`;
 - `security.advisor_warning_count`.
 
-Adding a Management API/log-derived security aggregate is a future reviewed extension, not hidden scope in this runtime task.
+Adding any Management API/log-derived or database-derived security aggregate is a future separately designed and approved extension.
 
 ## 5. Provider list and source identities
 
@@ -219,7 +219,7 @@ Initial sources:
 - `supabase-management-metrics` — approved Management API metrics scrape;
 - `backup` — WASDOK-55 operational timestamp health;
 - `deployment` — canonical schema drift and deployment state;
-- `security` — explicit UNKNOWN until a deterministic aggregate source is approved.
+- `security` — explicit UNKNOWN in this task.
 
 A provider may return fewer metric codes than the catalogue contains. Absence is preferable to invented telemetry.
 
@@ -301,7 +301,7 @@ The existing static-security scan must be extended where necessary to assert tha
 - the application probe does not persist or log response bodies;
 - backup health code does not query `backup_artifacts` or Storage object fields.
 
-`.env.example` may document variable names with empty values only. It must never contain a real key/token.
+`.env.example` must be updated with empty-name-only entries for the runtime configuration variables, including `OCPNG_HEALTH_COLLECTOR_RUNTIME_MODULE`, without any real key/token or deployment value.
 
 ## 10. Test strategy
 
@@ -333,13 +333,13 @@ Application probe tests:
 - malformed 2xx contract -> UNKNOWN;
 - no `app.http_error_rate` is synthesized.
 
-Management metrics tests preserve all existing token/body-redaction and allowlist cases.
+Management metrics tests preserve all existing token/body-redaction and allowlist cases and assert that this task adds no new metric mappings beyond `db.database_bytes` and `db.connections_active`.
 
 Backup source tests assert only the approved timestamp columns/tables are queried and that no artifact/reference fields are requested.
 
 Schema-drift tests assert the canonical RPC is used and raw migration history is never read.
 
-Security provider tests assert the initial no-source state is UNKNOWN and emits no invented counts.
+Security provider tests assert the no-source state is UNKNOWN and emits no invented counts.
 
 Persistence tests use a fake Supabase client or dependency-injected RPC function to assert exact RPC names/arguments and generic failure handling.
 
@@ -402,10 +402,10 @@ The implementation PR is merge-ready only when all of the following are true:
 - provider behavior is shared rather than duplicated where existing logic already exists;
 - configuration fails closed and never echoes secret values;
 - application probe emits only approved deterministic metrics and no response content;
-- Supabase metrics remain strict allowlisted aggregates;
+- Supabase metrics remain limited to the two already reviewed Management API mappings in this task;
 - backup health reads only the approved WASDOK-55 timestamp fields;
 - schema drift uses only the canonical service-role RPC;
-- unsupported security aggregates remain UNKNOWN rather than fabricated;
+- security aggregate metrics remain UNKNOWN rather than fabricated;
 - health persistence uses only service-role RPCs;
 - no browser/RLS/permission boundary is weakened;
 - no real secret is committed;
@@ -423,6 +423,8 @@ This task does not:
 - execute the production collector;
 - enable recurring scheduling;
 - create production thresholds;
+- add new Management API metric mappings beyond the two already reviewed mappings;
+- add new security aggregate sources;
 - add new alert delivery channels;
 - implement raw logs ingestion;
 - infer failed-login or failed-privileged-operation counts from ambiguous audit text;

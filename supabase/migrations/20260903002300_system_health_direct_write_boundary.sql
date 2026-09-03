@@ -330,3 +330,55 @@ revoke all on function public.record_deployment_health_state(text,text,text,text
   from public, anon, authenticated;
 grant execute on function public.record_deployment_health_state(text,text,text,text,text,text,timestamptz)
   to service_role;
+
+-- Deployment state is also freshness-normalized for human readers. A stopped or
+-- failed collector must not leave an old HEALTHY/CRITICAL state appearing current.
+create or replace function public.read_deployment_health_state()
+returns table(
+  id uuid,
+  environment text,
+  deployed_commit text,
+  release_id text,
+  expected_schema_version text,
+  applied_schema_version text,
+  status public.health_status,
+  source text,
+  provider text,
+  observed_at timestamptz,
+  collected_at timestamptz,
+  updated_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path=''
+as $$
+begin
+  if coalesce(auth.role(),'')='service_role' then return; end if;
+  perform private.require_health_permission('system.health.view');
+
+  return query
+  select
+    d.id,
+    d.environment,
+    d.deployed_commit,
+    d.release_id,
+    d.expected_schema_version,
+    d.applied_schema_version,
+    case
+      when now() > d.observed_at + make_interval(secs => 300)
+        then 'UNKNOWN'::public.health_status
+      else d.status
+    end as status,
+    d.source,
+    d.provider,
+    d.observed_at,
+    d.collected_at,
+    d.updated_at
+  from public.deployment_health_state d
+  order by d.environment;
+end;
+$$;
+
+revoke all on function public.read_deployment_health_state() from public, anon, authenticated;
+grant execute on function public.read_deployment_health_state() to authenticated;

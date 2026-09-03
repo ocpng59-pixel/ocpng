@@ -38,13 +38,14 @@ select ok(
   coalesce(
     (
       select pg_get_functiondef(to_regprocedure('public.read_applied_schema_version()'))
-    ) like '%supabase_migrations.schema_migrations%'
+    ) like '%private.application_schema_state%'
     and (
       select pg_get_functiondef(to_regprocedure('public.read_applied_schema_version()'))
-    ) like '%max(version)%',
+    ) not like '%supabase_migrations.schema_migrations%'
+    and public.read_applied_schema_version()='20260903002400',
     false
   ),
-  'schema version reader derives the latest applied Supabase migration version'
+  'schema version reader derives the canonical private application schema marker'
 );
 
 select * from finish();

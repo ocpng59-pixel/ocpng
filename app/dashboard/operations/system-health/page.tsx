@@ -12,7 +12,7 @@ async function requireView() {
   if (error || data !== true) notFound();
 }
 
-const rank: Record<HealthStatus, number> = { UNKNOWN: 1, HEALTHY: 2, WARNING: 3, CRITICAL: 4 };
+const rank: Record<HealthStatus, number> = { HEALTHY: 1, UNKNOWN: 2, WARNING: 3, CRITICAL: 4 };
 function domainStatus(metrics: Awaited<ReturnType<typeof listLatestHealthMetrics>>, domain: HealthMetricDomain): HealthStatus {
   const values = metrics.filter((metric) => metric.domain === domain);
   if (values.length === 0) return 'UNKNOWN';

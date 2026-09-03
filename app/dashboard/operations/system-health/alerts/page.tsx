@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { AlertTable } from '@/components/operations/health/alert-table';
 import { ThresholdForm } from '@/components/operations/health/threshold-form';
-import { listHealthAlerts, listHealthThresholds, listLatestHealthMetrics } from '@/lib/operations/health/queries';
+import { listHealthAlerts, listHealthThresholds } from '@/lib/operations/health/queries';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 async function permissions() {
@@ -15,10 +15,9 @@ async function permissions() {
 
 export default async function HealthAlertsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const access = await permissions();
-  const [alerts, thresholds, metrics, query] = await Promise.all([
+  const [alerts, thresholds, query] = await Promise.all([
     listHealthAlerts(),
     listHealthThresholds(),
-    listLatestHealthMetrics(),
     searchParams,
   ]);
   const notice = typeof query.notice === 'string' ? query.notice : null;
@@ -28,6 +27,6 @@ export default async function HealthAlertsPage({ searchParams }: { searchParams:
     {notice ? <p className="oc-card">{notice}</p> : null}
     {error ? <p className="oc-card" role="alert">{error}</p> : null}
     <AlertTable alerts={alerts} canManage={access.canManage} />
-    {access.canManage ? <ThresholdForm metrics={metrics} thresholds={thresholds} /> : <section className="oc-card"><h2>Thresholds</h2><p>You have view-only System Health access.</p></section>}
+    {access.canManage ? <ThresholdForm thresholds={thresholds} /> : <section className="oc-card"><h2>Thresholds</h2><p>You have view-only System Health access.</p></section>}
   </>;
 }

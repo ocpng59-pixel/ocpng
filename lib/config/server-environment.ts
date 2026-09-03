@@ -13,6 +13,12 @@ export type BackupOperationsConfiguration = {
   keyRef: string;
 };
 
+export type HealthOperationsConfiguration = {
+  projectRef: string;
+  healthToken: string;
+  publicAppUrl: string;
+};
+
 const clean = (value: string | undefined): string | null => {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -43,6 +49,19 @@ function isProjectRef(value: string): boolean {
 
 function isManagementToken(value: string): boolean {
   return value.startsWith('sbp_') && value.length >= 24 && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+function isHealthToken(value: string): boolean {
+  return value.length >= 24 && value.length <= 512 && /^[A-Za-z0-9._~-]+$/.test(value);
+}
+
+function isPublicAppUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
 }
 
 function isPostgresUrl(value: string): boolean {
@@ -106,4 +125,25 @@ export function getBackupOperationsConfiguration(
   }
 
   return { projectRef, managementToken, databaseUrl, backupBucket, keyRef };
+}
+
+export function getHealthOperationsConfiguration(
+  source: EnvironmentSource = runtimeEnvironment(),
+): HealthOperationsConfiguration {
+  const projectRef = clean(source.OCPNG_SUPABASE_PROJECT_REF);
+  const healthToken = clean(source.OCPNG_SUPABASE_HEALTH_TOKEN);
+  const publicAppUrl = clean(source.OCPNG_PUBLIC_APP_URL);
+
+  if (
+    !projectRef ||
+    !healthToken ||
+    !publicAppUrl ||
+    !isProjectRef(projectRef) ||
+    !isHealthToken(healthToken) ||
+    !isPublicAppUrl(publicAppUrl)
+  ) {
+    throw new Error('System health server configuration is unavailable.');
+  }
+
+  return { projectRef, healthToken, publicAppUrl };
 }

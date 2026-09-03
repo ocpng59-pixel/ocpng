@@ -32,7 +32,15 @@ jobs:
           export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
           export WASDOK55_BACKUP_E2E="true"
           npx vitest run tests/backups/e2e.test.ts
-      - name: Reset local database after WASDOK-55 E2E
+      - name: System Health end-to-end (WASDOK-85)
+        run: |
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export WASDOK85_HEALTH_E2E="true"
+          npx vitest run tests/health/e2e.test.ts
+      - name: Reset local database after WASDOK-55/WASDOK-85 E2E
         run: supabase db reset
       - name: Complaint intake end-to-end and audit (WASDOK-67)
         run: |

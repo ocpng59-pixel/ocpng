@@ -10,11 +10,15 @@ const requiredFiles = [
   'app/dashboard/users/roles/actions.ts','app/dashboard/users/roles/page.tsx','app/dashboard/users/roles/new/page.tsx','app/dashboard/users/roles/[roleId]/page.tsx',
   'app/dashboard/users/permissions/page.tsx','app/dashboard/users/scopes-compartments/page.tsx',
   'app/dashboard/operations/backups/page.tsx','app/dashboard/operations/backups/[backupId]/page.tsx','app/dashboard/operations/backups/restore/page.tsx','app/dashboard/operations/backups/actions.ts',
+  'app/dashboard/operations/system-health/page.tsx','app/dashboard/operations/system-health/database/page.tsx','app/dashboard/operations/system-health/storage/page.tsx',
+  'app/dashboard/operations/system-health/backups/page.tsx','app/dashboard/operations/system-health/deployment/page.tsx','app/dashboard/operations/system-health/alerts/page.tsx','app/dashboard/operations/system-health/actions.ts',
   'components/app-shell.tsx','components/sidebar.tsx','components/sign-out-control.tsx','components/module-landing.tsx',
   'components/access-control/action-message.tsx','components/access-control/role-form.tsx','components/access-control/permission-matrix.tsx',
   'components/access-control/user-access-form.tsx','components/access-control/user-invite-form.tsx',
   'components/operations/backups/backup-request-form.tsx','components/operations/backups/backup-status-card.tsx','components/operations/backups/backup-history-table.tsx',
   'components/operations/backups/backup-schedule-form.tsx','components/operations/backups/retention-policy-form.tsx','components/operations/backups/restore-request-form.tsx','components/operations/backups/restore-authorization-panel.tsx',
+  'components/operations/health/health-status-card.tsx','components/operations/health/metric-table.tsx','components/operations/health/growth-chart.tsx',
+  'components/operations/health/capacity-forecast-card.tsx','components/operations/health/threshold-form.tsx','components/operations/health/alert-table.tsx',
   'lib/config/module-pages.ts','lib/supabase/browser.ts','lib/supabase/server.ts','lib/rbac/authorized-navigation.ts','lib/rbac/module-route-authorization.ts'
 ];
 for (const rel of requiredFiles) assert.ok(fs.existsSync(path.join(root.pathname, rel)), `missing route or shell file: ${rel}`);
@@ -30,10 +34,16 @@ const navigation = fs.readFileSync(path.join(root.pathname,'lib/rbac/navigation.
 const hrefs = [
 '/dashboard/complaints','/dashboard/complaints/new','/dashboard/complaints/referrals','/dashboard/complaints/administrative','/dashboard/complaints/human-rights','/dashboard/complaints/police','/dashboard/intake','/dashboard/investigations','/dashboard/investigations/plans','/dashboard/investigations/evidence','/dashboard/investigations/right-to-be-heard','/dashboard/investigations/findings','/dashboard/leadership','/dashboard/leadership/investigations','/dashboard/leadership/referrals','/dashboard/leadership/tribunals','/dashboard/annual-statements','/dashboard/annual-statements/variance-review','/dashboard/government-bodies','/dashboard/oversight','/dashboard/oversight/inspections','/dashboard/oversight/systemic-issues','/dashboard/compliance','/dashboard/compliance/actions','/dashboard/compliance/escalations','/dashboard/commission','/dashboard/commission/decisions','/dashboard/legal','/dashboard/legal/matters','/dashboard/intelligence','/dashboard/intelligence/analysis','/dashboard/reports','/dashboard/tasks','/dashboard/notifications','/dashboard/users','/dashboard/users/roles','/dashboard/audit-log','/dashboard/settings'];
 for (const href of hrefs) assert.ok(definitions.includes(`'${href}'`), `missing module definition: ${href}`);
-const directRoutes = ['/dashboard/operations/backups','/dashboard/operations/backups/restore'];
+const directRoutes = [
+  '/dashboard/operations/backups','/dashboard/operations/backups/restore',
+  '/dashboard/operations/system-health','/dashboard/operations/system-health/database','/dashboard/operations/system-health/storage',
+  '/dashboard/operations/system-health/backups','/dashboard/operations/system-health/deployment','/dashboard/operations/system-health/alerts'
+];
 for (const href of directRoutes) assert.ok(navigation.includes(`'${href}'`) || requiredFiles.some((rel)=>rel.includes(href.replace('/dashboard/',''))), `missing direct route: ${href}`);
 assert.match(navigation, /Backup & Recovery/);
 assert.match(navigation, /backup\.view/);
+assert.match(navigation, /System Health/);
+assert.match(navigation, /system\.health\.view/);
 assert.doesNotMatch(definitions.toLowerCase(), /ff3|ff4|budget allocation|expense ledger/);
 assert.match(definitions, /LEADERSHIP_RESTRICTED/);
 assert.match(definitions, /ANNUAL_STATEMENT_SECRET/);

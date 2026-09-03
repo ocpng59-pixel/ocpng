@@ -14,6 +14,24 @@ function isHttpsUrl(value) {
   }
 }
 
+function isSupabaseProjectUrl(value, projectRef) {
+  try {
+    const parsed = new URL(value);
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === `${projectRef}.supabase.co` &&
+      parsed.port === '' &&
+      parsed.pathname === '/' &&
+      parsed.search === '' &&
+      parsed.hash === '' &&
+      !parsed.username &&
+      !parsed.password
+    );
+  } catch {
+    return false;
+  }
+}
+
 function isLegacyServiceRoleJwt(key) {
   const parts = key.split('.');
   if (parts.length !== 3) return false;
@@ -62,9 +80,9 @@ export function getHealthRuntimeConfiguration(source = process.env) {
     !projectRef ||
     !healthToken ||
     !publicAppUrl ||
-    !isHttpsUrl(supabaseUrl) ||
-    !isServiceRoleKey(serviceRoleKey) ||
     !isProjectRef(projectRef) ||
+    !isSupabaseProjectUrl(supabaseUrl, projectRef) ||
+    !isServiceRoleKey(serviceRoleKey) ||
     !isHealthToken(healthToken) ||
     !isHttpsUrl(publicAppUrl) ||
     (deployedCommit !== null && !isCommit(deployedCommit)) ||

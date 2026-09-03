@@ -47,4 +47,27 @@ const signedUrlPersistencePattern = /(?:insert|update|upsert)[\s\S]{0,200}signed
 assert.doesNotMatch(backupBrowserSurface, signedUrlPersistencePattern, 'WASDOK-55 browser surface must never persist a signed URL');
 assert.doesNotMatch(backupBrowserSurface, /NEXT_PUBLIC_(?:OCPNG_)?(?:SUPABASE_MANAGEMENT|BACKUP_DATABASE|BACKUP_KEY|BACKUP_BUCKET)/, 'WASDOK-55 operations credentials must never be public environment values');
 
-console.log(`WASDOK 360 static security scan: PASS (${files.length} source/config files; ${backupBrowserFiles.length} WASDOK-55 browser files)`);
+const healthBrowserFiles = files.filter((f) => {
+  const rel = path.relative(root, f).replaceAll(path.sep, '/');
+  return rel.startsWith('components/operations/health/') ||
+    rel.startsWith('app/dashboard/operations/system-health/');
+});
+const healthBrowserSurface = healthBrowserFiles.map((f)=>fs.readFileSync(f,'utf8')).join('\n');
+const healthForbidden = [
+  'OCPNG_SUPABASE_HEALTH_TOKEN',
+  'OCPNG_SUPABASE_PROJECT_REF',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'OCPNG_BACKUP_DATABASE_URL',
+  'createServiceSupabaseClient',
+  'raw_payload',
+  'object_name',
+  'object_path',
+];
+for (const token of healthForbidden) {
+  assert.ok(!healthBrowserSurface.includes(token), `WASDOK-85 browser surface must not contain ${token}`);
+}
+assert.doesNotMatch(healthBrowserSurface, /NEXT_PUBLIC_(?:OCPNG_)?(?:SUPABASE_HEALTH|SUPABASE_PROJECT_REF|SUPABASE_MANAGEMENT|BACKUP_DATABASE)/, 'WASDOK-85 privileged health/provider configuration must never be public environment data');
+assert.doesNotMatch(healthBrowserSurface, /analytics\/endpoints\/metrics|api\.supabase\.com\/v1\/projects/i, 'WASDOK-85 browser surface must never scrape provider metrics endpoints');
+assert.doesNotMatch(healthBrowserSurface, /(?:filename|object[_ -]?name|object[_ -]?path|storage_reference)/i, 'WASDOK-85 browser surface must not expose protected Storage object identifiers');
+
+console.log(`WASDOK 360 static security scan: PASS (${files.length} source/config files; ${backupBrowserFiles.length} WASDOK-55 browser files; ${healthBrowserFiles.length} WASDOK-85 browser files)`);

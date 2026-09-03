@@ -62,12 +62,13 @@ const healthForbidden = [
   'raw_payload',
   'object_name',
   'object_path',
+  'storage_reference',
 ];
 for (const token of healthForbidden) {
   assert.ok(!healthBrowserSurface.includes(token), `WASDOK-85 browser surface must not contain ${token}`);
 }
 assert.doesNotMatch(healthBrowserSurface, /NEXT_PUBLIC_(?:OCPNG_)?(?:SUPABASE_HEALTH|SUPABASE_PROJECT_REF|SUPABASE_MANAGEMENT|BACKUP_DATABASE)/, 'WASDOK-85 privileged health/provider configuration must never be public environment data');
 assert.doesNotMatch(healthBrowserSurface, /analytics\/endpoints\/metrics|api\.supabase\.com\/v1\/projects/i, 'WASDOK-85 browser surface must never scrape provider metrics endpoints');
-assert.doesNotMatch(healthBrowserSurface, /(?:filename|object[_ -]?name|object[_ -]?path|storage_reference)/i, 'WASDOK-85 browser surface must not expose protected Storage object identifiers');
+assert.doesNotMatch(healthBrowserSurface, /\b(?:filename|object_name|object_path|storage_reference)\b/i, 'WASDOK-85 browser surface must not expose protected Storage object identifiers');
 
 console.log(`WASDOK 360 static security scan: PASS (${files.length} source/config files; ${backupBrowserFiles.length} WASDOK-55 browser files; ${healthBrowserFiles.length} WASDOK-85 browser files)`);

@@ -246,3 +246,77 @@ $$;
 
 revoke all on function public.read_system_health_latest_metrics(text) from public, anon, authenticated;
 grant execute on function public.read_system_health_latest_metrics(text) to authenticated;
+
+-- Deployment state is persisted through a dedicated infrastructure-only RPC.
+-- The worker accepts only bounded identifiers needed for operational drift review;
+-- source/provider are fixed server-side and no arbitrary metadata is accepted.
+create or replace function public.record_deployment_health_state(
+  p_environment text,
+  p_deployed_commit text,
+  p_release_id text,
+  p_expected_schema_version text,
+  p_applied_schema_version text,
+  p_status text,
+  p_observed_at timestamptz
+)
+returns uuid
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  v_environment text := btrim(coalesce(p_environment,''));
+  v_commit text := nullif(btrim(coalesce(p_deployed_commit,'')), '');
+  v_release text := nullif(btrim(coalesce(p_release_id,'')), '');
+  v_expected text := btrim(coalesce(p_expected_schema_version,''));
+  v_applied text := nullif(btrim(coalesce(p_applied_schema_version,'')), '');
+  v_status text := upper(btrim(coalesce(p_status,'')));
+  v_id uuid;
+begin
+  perform private.require_health_worker();
+
+  if v_environment !~ '^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$' then
+    raise exception 'Invalid deployment environment identifier' using errcode='22023';
+  end if;
+  if v_commit is not null and v_commit !~ '^[A-Fa-f0-9]{7,64}$' then
+    raise exception 'Invalid deployment commit identifier' using errcode='22023';
+  end if;
+  if v_release is not null and v_release !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' then
+    raise exception 'Invalid deployment release identifier' using errcode='22023';
+  end if;
+  if v_expected !~ '^[0-9]{14}$' or (v_applied is not null and v_applied !~ '^[0-9]{14}$') then
+    raise exception 'Invalid deployment schema version' using errcode='22023';
+  end if;
+  if v_status not in ('HEALTHY','WARNING','CRITICAL','UNKNOWN') or p_observed_at is null then
+    raise exception 'Invalid deployment health status or observation time' using errcode='22023';
+  end if;
+
+  insert into public.deployment_health_state(
+    environment,deployed_commit,release_id,expected_schema_version,applied_schema_version,
+    status,source,provider,observed_at,safe_metadata
+  ) values (
+    v_environment,v_commit,v_release,v_expected,v_applied,
+    v_status::public.health_status,'deployment','wasdok',p_observed_at,'{}'::jsonb
+  )
+  on conflict (environment) do update set
+    deployed_commit=excluded.deployed_commit,
+    release_id=excluded.release_id,
+    expected_schema_version=excluded.expected_schema_version,
+    applied_schema_version=excluded.applied_schema_version,
+    status=excluded.status,
+    source='deployment',
+    provider='wasdok',
+    observed_at=excluded.observed_at,
+    collected_at=now(),
+    safe_metadata='{}'::jsonb,
+    updated_at=now()
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function public.record_deployment_health_state(text,text,text,text,text,text,timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.record_deployment_health_state(text,text,text,text,text,text,timestamptz)
+  to service_role;

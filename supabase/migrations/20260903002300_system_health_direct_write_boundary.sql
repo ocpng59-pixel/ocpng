@@ -287,8 +287,18 @@ begin
   if v_expected !~ '^[0-9]{14}$' or (v_applied is not null and v_applied !~ '^[0-9]{14}$') then
     raise exception 'Invalid deployment schema version' using errcode='22023';
   end if;
-  if v_status not in ('HEALTHY','WARNING','CRITICAL','UNKNOWN') or p_observed_at is null then
+  if v_status not in ('HEALTHY','CRITICAL','UNKNOWN') or p_observed_at is null then
     raise exception 'Invalid deployment health status or observation time' using errcode='22023';
+  end if;
+
+  if v_applied is null and v_status <> 'UNKNOWN' then
+    raise exception 'Unknown applied schema requires UNKNOWN deployment status' using errcode='22023';
+  end if;
+  if v_applied is not null and v_applied=v_expected and v_status <> 'HEALTHY' then
+    raise exception 'Matching schema versions require HEALTHY deployment status' using errcode='22023';
+  end if;
+  if v_applied is not null and v_applied<>v_expected and v_status <> 'CRITICAL' then
+    raise exception 'Schema version drift requires CRITICAL deployment status' using errcode='22023';
   end if;
 
   insert into public.deployment_health_state(

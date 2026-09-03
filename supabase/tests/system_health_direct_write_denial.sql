@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(68);
+select plan(70);
 
 -- 1-48: browser roles cannot directly read or mutate WASDOK-85 operational tables.
 -- Authorized human reads must flow through normalized permission-enforcing RPCs.
@@ -24,7 +24,7 @@ select ok(
 from tables cross join roles cross join privileges
 order by tables.name,roles.name,privileges.name;
 
--- 49-57: anonymous browser access cannot execute any WASDOK-85 public RPC.
+-- 49-58: anonymous browser access cannot execute any WASDOK-85 public RPC.
 with functions(signature) as (
   values
     ('public.record_health_snapshot(text,timestamp with time zone,jsonb,jsonb)'),
@@ -32,6 +32,7 @@ with functions(signature) as (
     ('public.admin_set_health_threshold_active(uuid,boolean,text)'),
     ('public.acknowledge_health_alert(uuid,text)'),
     ('public.read_system_health_latest_metrics(text)'),
+    ('public.read_system_health_metric_history(text,integer)'),
     ('public.read_system_health_thresholds()'),
     ('public.read_system_health_alerts(text)'),
     ('public.read_deployment_health_state()'),
@@ -43,7 +44,7 @@ select ok(
 )
 from functions;
 
--- 58-59: authenticated browser sessions cannot execute infrastructure-only RPCs.
+-- 59-60: authenticated browser sessions cannot execute infrastructure-only RPCs.
 with functions(signature) as (
   values
     ('public.record_health_snapshot(text,timestamp with time zone,jsonb,jsonb)'),
@@ -55,7 +56,7 @@ select ok(
 )
 from functions;
 
--- 60-61: trusted service role retains infrastructure authority.
+-- 61-62: trusted service role retains infrastructure authority.
 with functions(signature) as (
   values
     ('public.record_health_snapshot(text,timestamp with time zone,jsonb,jsonb)'),
@@ -67,13 +68,14 @@ select ok(
 )
 from functions;
 
--- 62-68: authenticated users may call only permission-enforcing human/admin RPCs.
+-- 63-70: authenticated users may call only permission-enforcing human/admin RPCs.
 with functions(signature) as (
   values
     ('public.admin_set_health_threshold(text,numeric,numeric,text,text)'),
     ('public.admin_set_health_threshold_active(uuid,boolean,text)'),
     ('public.acknowledge_health_alert(uuid,text)'),
     ('public.read_system_health_latest_metrics(text)'),
+    ('public.read_system_health_metric_history(text,integer)'),
     ('public.read_system_health_thresholds()'),
     ('public.read_system_health_alerts(text)'),
     ('public.read_deployment_health_state()')

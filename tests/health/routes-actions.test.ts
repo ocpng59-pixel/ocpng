@@ -103,4 +103,11 @@ describe('WASDOK-85 System Health dashboard routes and actions', () => {
     expect(source).toContain('observedAt');
     expect(source).toContain('value');
   });
+
+  it('allows threshold initialization before the first telemetry sample by using the fixed metric catalogue', () => {
+    const source = readFileSync('components/operations/health/threshold-form.tsx', 'utf8');
+    expect(source).toContain('HEALTH_METRIC_CATALOG');
+    expect(source).not.toContain('metrics.map');
+    expect(source).not.toContain('HealthMetricView');
+  });
 });

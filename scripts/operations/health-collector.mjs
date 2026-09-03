@@ -39,6 +39,7 @@ export async function executeHealthCollector({
   const result = await runHealthCollector({
     providers: runtime?.providers,
     recordSnapshot: runtime?.recordSnapshot,
+    recordDeploymentState: runtime?.recordDeploymentState,
     now: runtime?.now,
     providerTimeoutMs: runtime?.providerTimeoutMs,
   });

@@ -2,18 +2,19 @@
 
 ## Status of this runbook
 
-This document is a deployment procedure, **not deployment authorization**. PR #19, hosted Supabase migration, production provider credentials, telemetry scraping, collector scheduling, threshold activation and application production deployment remain separate approval gates.
+This document is a deployment procedure, **not deployment authorization**. PR #19, corrective hotfix PRs, hosted Supabase migration, production provider credentials, telemetry scraping, collector scheduling, threshold activation and application production deployment remain separate approval gates.
 
 Do not perform any production step merely because this file exists or because CI is green.
 
 ## Required preconditions
 
 1. PR #19 has completed exact-head review and has been explicitly approved for merge.
-2. The merged release head is known and immutable for the deployment window.
-3. A separate explicit approval has been given for hosted Supabase migration deployment.
-4. A separate explicit approval has been given before configuring production System Health provider credentials or enabling the scheduler.
-5. WASDOK-55 Backup & Recovery is already deployed and its metadata workflows are healthy.
-6. The operator has a rollback/change record and the maintenance window owner is identified.
+2. Any corrective WASDOK-85 hotfix PR has completed exact-head review and has been explicitly approved for merge before its migration is deployed.
+3. The merged release head is known and immutable for the deployment window.
+4. A separate explicit approval has been given for hosted Supabase migration deployment.
+5. A separate explicit approval has been given before configuring production System Health provider credentials or enabling the scheduler.
+6. WASDOK-55 Backup & Recovery is already deployed and its metadata workflows are healthy.
+7. The operator has a rollback/change record and the maintenance window owner is identified.
 
 ## Required migration order
 
@@ -22,10 +23,13 @@ Apply the WASDOK-85 migrations in this exact order after all previously approved
 1. `20260903002100_system_health_foundation.sql`
 2. `20260903002200_system_health_workflows.sql`
 3. `20260903002300_system_health_direct_write_boundary.sql`
+4. `20260903002400_system_health_canonical_schema_version.sql`
 
-Never apply `02200` or `02300` before their predecessor. After migration, verify the hosted migration history reports **`20260903002300`** as the expected WASDOK-85 schema version before enabling production collection.
+Never apply a WASDOK-85 migration before its predecessor. The `02400` hotfix establishes the canonical application schema marker used by deployment-drift detection.
 
-If any migration fails, stop. Do not enable the collector and do not attempt ad-hoc SQL fixes outside the reviewed migration chain.
+Supabase hosted migration APIs may record deployment-time ledger timestamps that differ from repository migration filenames. **Do not compare the raw `supabase_migrations.schema_migrations` maximum timestamp to the application's expected schema version.** After `02400`, verify the service-role-only `read_applied_schema_version()` RPC reports **`20260903002400`** from the private canonical application schema marker before enabling production collection.
+
+If any migration fails, stop. Do not enable the collector and do not attempt ad-hoc migration-history edits or unreviewed SQL fixes outside the reviewed migration chain.
 
 ## Production configuration
 
@@ -48,14 +52,15 @@ The public liveness endpoint may expose only the approved minimal health respons
 Before the first production scrape:
 
 1. Confirm the application release is the explicitly approved merged head.
-2. Confirm hosted migration history includes `02100`, `02200`, `02300` in order and the latest applied WASDOK-85 version is `20260903002300`.
-3. Confirm `anon` and ordinary `authenticated` sessions have no direct SELECT/INSERT/UPDATE/DELETE access to health operational tables.
-4. Confirm `system.health.view` users can call only normalized read RPCs.
-5. Confirm `system.health.manage` is required for threshold administration and alert acknowledgement.
-6. Confirm service-role collector access is server-side only, including both `record_health_snapshot` and `record_deployment_health_state`.
-7. Confirm the Management API token can read the project metrics endpoint and cannot perform unrelated write operations.
-8. Confirm `/api/health` returns the public-safe liveness contract without infrastructure detail.
-9. Confirm no production thresholds have been silently created. Threshold values require an authorized administrative decision and reason.
+2. Confirm hosted migration history contains the WASDOK-85 `02100`, `02200`, `02300`, and `02400` migrations in order. Hosted ledger timestamps may differ from repository filename versions.
+3. Confirm service-role-only `read_applied_schema_version()` returns canonical application version `20260903002400` from `private.application_schema_state`.
+4. Confirm `anon` and ordinary `authenticated` sessions cannot execute `read_applied_schema_version()` and have no direct SELECT/INSERT/UPDATE/DELETE access to health operational tables.
+5. Confirm `system.health.view` users can call only normalized read RPCs.
+6. Confirm `system.health.manage` is required for threshold administration and alert acknowledgement.
+7. Confirm service-role collector access is server-side only, including `record_health_snapshot`, `record_deployment_health_state`, and `read_applied_schema_version`.
+8. Confirm the Management API token can read the project metrics endpoint and cannot perform unrelated write operations.
+9. Confirm `/api/health` returns the public-safe liveness contract without infrastructure detail.
+10. Confirm no production thresholds have been silently created. Threshold values require an authorized administrative decision and reason.
 
 ## Initial collector dry run
 
@@ -70,7 +75,8 @@ Validate after that run:
 - provider failures become approved `UNKNOWN` states and do not stop other providers;
 - raw Prometheus/provider payloads and provider error bodies are absent from database records and logs;
 - Storage object names/paths and protected filenames are absent;
-- `deployment.schema_drift` is `0` when the applied schema matches `20260903002300`;
+- `deployment.schema_drift` is `0` when `read_applied_schema_version()` reports `20260903002400`;
+- raw hosted migration-ledger timestamps are never exposed to operators as the canonical application schema version;
 - deployment state contains only normalized safe identifiers, with source fixed to `deployment` and provider fixed to `wasdok`;
 - deployment state and deployment metrics age to `UNKNOWN` for human readers when their 300-second freshness window expires;
 - authorized System Health pages render normalized measurements and reasons;
@@ -108,7 +114,8 @@ After scheduling:
 - verify database and Storage history accumulates without object-level content;
 - verify forecasts remain `INSUFFICIENT_DATA` until seven distinct observation days exist;
 - verify backup health reads only WASDOK-55 operational metadata;
-- verify schema drift turns CRITICAL for a controlled mismatched version in non-production testing;
+- verify schema drift turns CRITICAL for a controlled mismatched canonical version in non-production testing;
+- verify raw hosted migration-ledger timestamps do not drive application schema-drift status;
 - verify stale deployment state becomes UNKNOWN rather than remaining HEALTHY;
 - verify audit records identify authorized human threshold/acknowledgement actors;
 - verify application build/browser scans remain credential-clean.

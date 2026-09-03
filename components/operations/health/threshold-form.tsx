@@ -1,13 +1,14 @@
 import { setHealthThresholdAction, setHealthThresholdActiveAction } from '@/app/dashboard/operations/system-health/actions';
-import type { HealthMetricView, HealthThresholdView } from '@/lib/operations/health/queries';
+import { HEALTH_METRIC_CATALOG } from '@/lib/operations/health/catalog';
+import type { HealthThresholdView } from '@/lib/operations/health/queries';
 
-export function ThresholdForm({ metrics, thresholds }: { metrics: HealthMetricView[]; thresholds: HealthThresholdView[] }) {
-  const options = [...new Map(metrics.map((metric) => [metric.metricCode, metric])).values()];
+export function ThresholdForm({ thresholds }: { thresholds: HealthThresholdView[] }) {
+  const options = HEALTH_METRIC_CATALOG;
   return <section className="oc-card">
     <h2>Threshold administration</h2>
     <p>Only allowlisted catalogue metrics can be configured. Every change requires a reason and is audited.</p>
     <form action={setHealthThresholdAction}>
-      <label>Metric<select name="metricCode" required>{options.map((metric) => <option key={metric.metricCode} value={metric.metricCode}>{metric.name} ({metric.metricCode})</option>)}</select></label>
+      <label>Metric<select name="metricCode" required>{options.map((metric) => <option key={metric.code} value={metric.code}>{metric.code} ({metric.unit})</option>)}</select></label>
       <label>Warning value<input name="warningValue" type="number" step="any" required /></label>
       <label>Critical value<input name="criticalValue" type="number" step="any" required /></label>
       <label>Direction<select name="direction" required><option value="ABOVE_IS_BAD">Above is bad</option><option value="BELOW_IS_BAD">Below is bad</option></select></label>

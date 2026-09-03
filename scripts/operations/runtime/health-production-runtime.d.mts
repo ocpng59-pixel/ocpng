@@ -9,6 +9,6 @@ export type HealthCollectorRuntime = {
 export function createHealthCollectorRuntime(input?: {
   env?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
-  createClientImpl?: (...args: any[]) => any;
+  createClientImpl?: (...args: unknown[]) => unknown;
   now?: () => Date;
 }): HealthCollectorRuntime;

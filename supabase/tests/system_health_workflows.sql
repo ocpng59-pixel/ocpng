@@ -27,7 +27,7 @@ begin
 end;
 $$;
 
-select plan(39);
+select plan(40);
 
 -- Fictional WASDOK-85 identities.
 insert into auth.users (
@@ -185,7 +185,8 @@ select ok(
   'service role is not treated as a human health viewer by normalized read helper'
 );
 
--- 29-34: normalized reads require system.health.view and return operational metadata only.
+-- 29-35: normalized reads require system.health.view, return operational metadata only,
+-- and convert stale persisted status to UNKNOWN at read time.
 select set_config('request.jwt.claim.role','authenticated',true);
 select set_config('request.jwt.claim.sub','85000000-0000-0000-0000-000000000003',true);
 select throws_ok(
@@ -202,7 +203,23 @@ select lives_ok($$select * from public.read_system_health_thresholds()$$,'health
 select lives_ok($$select * from public.read_system_health_alerts(null)$$,'health viewer can read normalized alerts');
 select ok(pg_temp.health_read_alert_count()=1,'normalized alert read exposes the active alert without provider payload');
 
--- 35-39: acknowledgement requires manage authority, reason and immutable audit.
+insert into public.system_health_snapshots(id,source,provider,status,observed_at,safe_metadata)
+values('85000000-0000-0000-0000-000000000901','stale-demo','wasdok-health-worker','HEALTHY',now()-interval '1 hour','{}'::jsonb);
+insert into public.system_health_metric_samples(
+  snapshot_id,metric_code,numeric_value,status,reason,source,provider,observed_at,stale_after_seconds,safe_metadata
+) values(
+  '85000000-0000-0000-0000-000000000901','app.availability',1,'HEALTHY',null,
+  'stale-demo','wasdok',now()-interval '1 hour',300,'{}'::jsonb
+);
+select ok(
+  exists(
+    select 1 from public.read_system_health_latest_metrics('application')
+    where metric_code='app.availability' and status='UNKNOWN' and reason='STALE_SAMPLE'
+  ),
+  'stale persisted metric is normalized to UNKNOWN with STALE_SAMPLE reason at read time'
+);
+
+-- 36-40: acknowledgement requires manage authority, reason and immutable audit.
 select set_config('request.jwt.claim.sub','85000000-0000-0000-0000-000000000002',true);
 select throws_ok(
   $$select public.acknowledge_health_alert((select id from public.system_health_alerts where metric_code='db.database_bytes' and status='OPEN'),'Viewer cannot acknowledge DEMO alert')$$,
